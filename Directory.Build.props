@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <!-- CA1515 (tipos internal) y CA1062 (null-check de args) no aplican a un API con nullable activado. -->
+    <NoWarn>$(NoWarn);CA1515;CA1062;CA1848;CA1716;CA1711;CA1707;CA1034;CA2007;CA1032;CA1031;CA1873</NoWarn>
+  </PropertyGroup>
+</Project>

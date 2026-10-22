@@ -1,0 +1,1128 @@
+{
+  "_type": "export",
+  "__export_format": 4,
+  "__export_source": "healthymind.generator",
+  "resources": [
+    {
+      "_id": "wrk_healthymind",
+      "_type": "workspace",
+      "parentId": null,
+      "name": "HealthyMind API",
+      "scope": "collection",
+      "description": "Backend .NET 10 de HealthyMindIA. Empezar por 1. Autenticación: el resto usa el token guardado."
+    },
+    {
+      "_id": "env_base",
+      "_type": "environment",
+      "parentId": "wrk_healthymind",
+      "name": "Base Environment",
+      "data": {
+        "baseUrl": "http://localhost:5080",
+        "deviceId": "insomnia-device-01",
+        "username": "demo.user",
+        "email": "demo.user@healthymind.local",
+        "password": "Clave1234",
+        "adminUsername": "admin",
+        "adminPassword": "Admin12345",
+        "accessToken": "",
+        "refreshToken": "",
+        "adminToken": "",
+        "userId": "",
+        "targetUserId": "",
+        "sessionId": "",
+        "habitId": "",
+        "stepsHabitId": "",
+        "recordId": "",
+        "recommendationId": "",
+        "serverTime": "",
+        "offlineHabitId": "3f7c2a10-5b1e-4c8e-9d2a-6a1b2c3d4e5f",
+        "offlineRecordId": "8a9b0c1d-2e3f-4a5b-8c6d-7e8f9a0b1c2d"
+      },
+      "dataPropertyOrder": {
+        "&": [
+          "baseUrl",
+          "deviceId",
+          "username",
+          "email",
+          "password",
+          "adminUsername",
+          "adminPassword",
+          "accessToken",
+          "refreshToken",
+          "adminToken",
+          "userId",
+          "targetUserId",
+          "sessionId",
+          "habitId",
+          "stepsHabitId",
+          "recordId",
+          "recommendationId",
+          "serverTime",
+          "offlineHabitId",
+          "offlineRecordId"
+        ]
+      }
+    },
+    {
+      "_id": "env_local",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Local",
+      "data": {
+        "baseUrl": "http://localhost:5080"
+      }
+    },
+    {
+      "_id": "env_emulador",
+      "_type": "environment",
+      "parentId": "env_base",
+      "name": "Emulador Android",
+      "data": {
+        "baseUrl": "http://10.0.2.2:5080"
+      }
+    },
+    {
+      "_id": "fld_01",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "0. Salud",
+      "description": "Ping sin token: el móvil lo usa para saber si hay conexión real con el servidor.",
+      "metaSortKey": 1
+    },
+    {
+      "_id": "req_002",
+      "_type": "request",
+      "parentId": "fld_01",
+      "name": "Health check",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/health",
+      "description": "",
+      "metaSortKey": 2,
+      "headers": [],
+      "parameters": [],
+      "authentication": {},
+      "body": {}
+    },
+    {
+      "_id": "fld_03",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "1. Autenticación",
+      "description": "Ejecutar Registro o Login primero: guardan accessToken y refreshToken en el entorno.",
+      "metaSortKey": 3
+    },
+    {
+      "_id": "req_004",
+      "_type": "request",
+      "parentId": "fld_03",
+      "name": "Registro",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/register",
+      "description": "Crea la cuenta (rol User) y deja la sesión abierta en el dispositivo. 201.",
+      "metaSortKey": 4,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"{{ _.username }}\",\n  \"email\": \"{{ _.email }}\",\n  \"firstName\": \"Ana\",\n  \"lastName\": \"Pérez\",\n  \"password\": \"{{ _.password }}\",\n  \"deviceId\": \"{{ _.deviceId }}\",\n  \"deviceName\": \"Insomnia\",\n  \"timeZoneId\": \"America/Guayaquil\"\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.accessToken) insomnia.environment.set('accessToken', body.accessToken);\nif (body && body.refreshToken) insomnia.environment.set('refreshToken', body.refreshToken);\nif (body && body.user && body.user.id) insomnia.environment.set('userId', body.user && body.user.id);\n"
+    },
+    {
+      "_id": "req_005",
+      "_type": "request",
+      "parentId": "fld_03",
+      "name": "Login (contraseña, una sola vez)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/login",
+      "description": "5 fallos seguidos bloquean la cuenta 15 minutos.",
+      "metaSortKey": 5,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"usernameOrEmail\": \"{{ _.username }}\",\n  \"password\": \"{{ _.password }}\",\n  \"deviceId\": \"{{ _.deviceId }}\",\n  \"deviceName\": \"Insomnia\"\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.accessToken) insomnia.environment.set('accessToken', body.accessToken);\nif (body && body.refreshToken) insomnia.environment.set('refreshToken', body.refreshToken);\nif (body && body.user && body.user.id) insomnia.environment.set('userId', body.user && body.user.id);\n"
+    },
+    {
+      "_id": "req_006",
+      "_type": "request",
+      "parentId": "fld_03",
+      "name": "Refresh (lo que hace la huella)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/refresh",
+      "description": "Rota el refresh token. Si reenvías uno ya usado, se cierra la sesión del dispositivo (401).",
+      "metaSortKey": 6,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ _.refreshToken }}\",\n  \"deviceId\": \"{{ _.deviceId }}\"\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.accessToken) insomnia.environment.set('accessToken', body.accessToken);\nif (body && body.refreshToken) insomnia.environment.set('refreshToken', body.refreshToken);\nif (body && body.user && body.user.id) insomnia.environment.set('userId', body.user && body.user.id);\n"
+    },
+    {
+      "_id": "req_007",
+      "_type": "request",
+      "parentId": "fld_03",
+      "name": "Logout",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/logout",
+      "description": "",
+      "metaSortKey": 7,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"refreshToken\": \"{{ _.refreshToken }}\"\n}"
+      }
+    },
+    {
+      "_id": "fld_08",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "2. Perfil y sesiones",
+      "description": "",
+      "metaSortKey": 8
+    },
+    {
+      "_id": "req_009",
+      "_type": "request",
+      "parentId": "fld_08",
+      "name": "Mi perfil",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/profile",
+      "description": "",
+      "metaSortKey": 9,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_010",
+      "_type": "request",
+      "parentId": "fld_08",
+      "name": "Actualizar perfil",
+      "method": "PUT",
+      "url": "{{ _.baseUrl }}/api/profile",
+      "description": "",
+      "metaSortKey": 10,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"firstName\": \"Ana María\",\n  \"lastName\": \"Pérez\",\n  \"email\": \"{{ _.email }}\",\n  \"timeZoneId\": \"America/Guayaquil\"\n}"
+      }
+    },
+    {
+      "_id": "req_011",
+      "_type": "request",
+      "parentId": "fld_08",
+      "name": "Cambiar contraseña",
+      "method": "PUT",
+      "url": "{{ _.baseUrl }}/api/profile/password",
+      "description": "Cierra las sesiones de los demás dispositivos. Luego actualiza la variable password del entorno.",
+      "metaSortKey": 11,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"currentPassword\": \"{{ _.password }}\",\n  \"newPassword\": \"Clave98765\",\n  \"deviceId\": \"{{ _.deviceId }}\"\n}"
+      }
+    },
+    {
+      "_id": "req_012",
+      "_type": "request",
+      "parentId": "fld_08",
+      "name": "Dispositivos con sesión",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/auth/sessions",
+      "description": "",
+      "metaSortKey": 12,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {},
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body[0] && body[0].id) insomnia.environment.set('sessionId', body[0] && body[0].id);\n"
+    },
+    {
+      "_id": "req_013",
+      "_type": "request",
+      "parentId": "fld_08",
+      "name": "Cerrar sesión de un dispositivo",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/api/auth/sessions/{{ _.sessionId }}",
+      "description": "",
+      "metaSortKey": 13,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_014",
+      "_type": "request",
+      "parentId": "fld_08",
+      "name": "Cerrar sesión en todos los dispositivos",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/api/auth/sessions",
+      "description": "",
+      "metaSortKey": 14,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "fld_15",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "3. Hábitos (RF02)",
+      "description": "",
+      "metaSortKey": 15
+    },
+    {
+      "_id": "req_016",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Crear hábito",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/habits",
+      "description": "Categorías: Salud, Ejercicio, Nutricion, Lectura, Productividad, Bienestar, Hidratacion. scheduledDays vacío = todos los días.",
+      "metaSortKey": 16,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Tomar agua\",\n  \"category\": \"Hidratacion\",\n  \"goal\": 8,\n  \"unit\": \"vasos\",\n  \"scheduledDays\": [],\n  \"trackingMode\": \"Manual\"\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.id) insomnia.environment.set('habitId', body.id);\n"
+    },
+    {
+      "_id": "req_017",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Crear hábito de pasos (RF06)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/habits",
+      "description": "",
+      "metaSortKey": 17,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Caminar\",\n  \"category\": \"Ejercicio\",\n  \"goal\": 6000,\n  \"unit\": \"pasos\",\n  \"scheduledDays\": [\n    \"Monday\",\n    \"Wednesday\",\n    \"Friday\"\n  ],\n  \"trackingMode\": \"StepCounter\"\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.id) insomnia.environment.set('stepsHabitId', body.id);\n"
+    },
+    {
+      "_id": "req_018",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Listar mis hábitos",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/habits",
+      "description": "",
+      "metaSortKey": 18,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_019",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Filtrar por categoría / búsqueda / estado",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/habits?category=Hidratacion&search=agua&isActive=true",
+      "description": "",
+      "metaSortKey": 19,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_020",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Ver hábito",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}",
+      "description": "",
+      "metaSortKey": 20,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_021",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Editar hábito",
+      "method": "PUT",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}",
+      "description": "",
+      "metaSortKey": 21,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"name\": \"Tomar agua\",\n  \"category\": \"Hidratacion\",\n  \"goal\": 10,\n  \"unit\": \"vasos\",\n  \"scheduledDays\": [],\n  \"trackingMode\": \"Manual\"\n}"
+      }
+    },
+    {
+      "_id": "req_022",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Pausar hábito",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}/status",
+      "description": "",
+      "metaSortKey": 22,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"isActive\": false\n}"
+      }
+    },
+    {
+      "_id": "req_023",
+      "_type": "request",
+      "parentId": "fld_15",
+      "name": "Reactivar hábito",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}/status",
+      "description": "",
+      "metaSortKey": 23,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"isActive\": true\n}"
+      }
+    },
+    {
+      "_id": "fld_24",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "4. Registros de cumplimiento (RF03)",
+      "description": "",
+      "metaSortKey": 24
+    },
+    {
+      "_id": "req_025",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Registrar el día de hoy (con ubicación)",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}/records",
+      "description": "409 si ya existe ese día; 422 si la fecha es futura o el hábito está pausado.",
+      "metaSortKey": 25,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"recordDate\": \"{% now 'custom', 'YYYY-MM-DD' %}\",\n  \"completedValue\": 8,\n  \"notes\": \"Antes del almuerzo\",\n  \"latitude\": -0.1807,\n  \"longitude\": -78.4678\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.id) insomnia.environment.set('recordId', body.id);\n"
+    },
+    {
+      "_id": "req_026",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Pasos del día (crea o actualiza)",
+      "method": "PUT",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.stepsHabitId }}/records/{% now 'custom', 'YYYY-MM-DD' %}",
+      "description": "Idempotente: el móvil lo llama varias veces al día con el conteo del sensor.",
+      "metaSortKey": 26,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"completedValue\": 7200,\n  \"notes\": null,\n  \"latitude\": null,\n  \"longitude\": null\n}"
+      }
+    },
+    {
+      "_id": "req_027",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Historial del hábito",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}/records",
+      "description": "",
+      "metaSortKey": 27,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_028",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Historial por rango",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}/records?from=2026-10-01&to={% now 'custom', 'YYYY-MM-DD' %}",
+      "description": "",
+      "metaSortKey": 28,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_029",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Ver registro",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/records/{{ _.recordId }}",
+      "description": "",
+      "metaSortKey": 29,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_030",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Corregir registro",
+      "method": "PUT",
+      "url": "{{ _.baseUrl }}/api/records/{{ _.recordId }}",
+      "description": "",
+      "metaSortKey": 30,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"completedValue\": 6,\n  \"notes\": \"Corregido\",\n  \"latitude\": null,\n  \"longitude\": null\n}"
+      }
+    },
+    {
+      "_id": "req_031",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Eliminar registro",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/api/records/{{ _.recordId }}",
+      "description": "",
+      "metaSortKey": 31,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_032",
+      "_type": "request",
+      "parentId": "fld_24",
+      "name": "Eliminar hábito (al final: borra también sus registros)",
+      "method": "DELETE",
+      "url": "{{ _.baseUrl }}/api/habits/{{ _.habitId }}",
+      "description": "Baja lógica del hábito y sus registros; se propaga a los dispositivos en el siguiente pull.",
+      "metaSortKey": 32,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "fld_33",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "5. Estadísticas (RF04)",
+      "description": "",
+      "metaSortKey": 33
+    },
+    {
+      "_id": "req_034",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Dashboard (inicio)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/dashboard",
+      "description": "",
+      "metaSortKey": 34,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_035",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Diario (hoy)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/daily",
+      "description": "",
+      "metaSortKey": 35,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_036",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Diario (fecha)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/daily?date={% now 'custom', 'YYYY-MM-DD' %}",
+      "description": "",
+      "metaSortKey": 36,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_037",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Semanal (lunes a domingo)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/weekly",
+      "description": "",
+      "metaSortKey": 37,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_038",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Mensual (actual)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/monthly",
+      "description": "",
+      "metaSortKey": 38,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_039",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Mensual (año y mes)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/monthly?year=2026&month=10",
+      "description": "",
+      "metaSortKey": 39,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_040",
+      "_type": "request",
+      "parentId": "fld_33",
+      "name": "Rango (máx. 366 días)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/statistics/range?from=2026-10-01&to={% now 'custom', 'YYYY-MM-DD' %}",
+      "description": "",
+      "metaSortKey": 40,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "fld_41",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "6. Recomendaciones IA (RF05)",
+      "description": "Se generan solas cada cierto tiempo con Groq (modelo en Groq:Model). Para forzar una, usar la carpeta Administración.",
+      "metaSortKey": 41
+    },
+    {
+      "_id": "req_042",
+      "_type": "request",
+      "parentId": "fld_41",
+      "name": "Última recomendación",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/recommendations/latest",
+      "description": "204 si todavía no hay ninguna.",
+      "metaSortKey": 42,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_043",
+      "_type": "request",
+      "parentId": "fld_41",
+      "name": "Historial",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/recommendations?page=1&pageSize=20",
+      "description": "",
+      "metaSortKey": 43,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {},
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.items && body.items[0] && body.items[0].id) insomnia.environment.set('recommendationId', body.items && body.items[0] && body.items[0].id);\n"
+    },
+    {
+      "_id": "req_044",
+      "_type": "request",
+      "parentId": "fld_41",
+      "name": "Ver recomendación",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/recommendations/{{ _.recommendationId }}",
+      "description": "",
+      "metaSortKey": 44,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "fld_45",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "7. Sincronización offline (RNF05)",
+      "description": "Al recuperar conexión: primero push, luego pull con el serverTime guardado.",
+      "metaSortKey": 45
+    },
+    {
+      "_id": "req_046",
+      "_type": "request",
+      "parentId": "fld_45",
+      "name": "Pull completo (primera vez)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/sync/pull",
+      "description": "",
+      "metaSortKey": 46,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {},
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.serverTime) insomnia.environment.set('serverTime', body.serverTime);\n"
+    },
+    {
+      "_id": "req_047",
+      "_type": "request",
+      "parentId": "fld_45",
+      "name": "Push de cambios hechos sin conexión",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/sync/push",
+      "description": "Cada elemento vuelve Applied, Stale (el servidor tiene algo más nuevo) o Rejected (regla de negocio). Si trae serverId, el móvil reemplaza su id local por ese.",
+      "metaSortKey": 47,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"deviceId\": \"{{ _.deviceId }}\",\n  \"habits\": [\n    {\n      \"id\": \"{{ _.offlineHabitId }}\",\n      \"name\": \"Leer\",\n      \"category\": \"Lectura\",\n      \"goal\": 20,\n      \"unit\": \"páginas\",\n      \"scheduledDays\": [],\n      \"trackingMode\": \"Manual\",\n      \"isActive\": true,\n      \"isDeleted\": false,\n      \"updatedAt\": \"{% now 'iso-8601', '' %}\"\n    }\n  ],\n  \"records\": [\n    {\n      \"id\": \"{{ _.offlineRecordId }}\",\n      \"habitId\": \"{{ _.offlineHabitId }}\",\n      \"recordDate\": \"{% now 'custom', 'YYYY-MM-DD' %}\",\n      \"completedValue\": 25,\n      \"notes\": \"Leído en el bus, sin señal\",\n      \"latitude\": null,\n      \"longitude\": null,\n      \"isDeleted\": false,\n      \"updatedAt\": \"{% now 'iso-8601', '' %}\"\n    }\n  ]\n}"
+      }
+    },
+    {
+      "_id": "req_048",
+      "_type": "request",
+      "parentId": "fld_45",
+      "name": "Push: eliminar lo creado offline",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/sync/push",
+      "description": "",
+      "metaSortKey": 48,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"deviceId\": \"{{ _.deviceId }}\",\n  \"habits\": [\n    {\n      \"id\": \"{{ _.offlineHabitId }}\",\n      \"name\": \"Leer\",\n      \"category\": \"Lectura\",\n      \"goal\": 20,\n      \"unit\": \"páginas\",\n      \"scheduledDays\": [],\n      \"trackingMode\": \"Manual\",\n      \"isActive\": true,\n      \"isDeleted\": true,\n      \"updatedAt\": \"{% now 'iso-8601', '' %}\"\n    }\n  ],\n  \"records\": []\n}"
+      }
+    },
+    {
+      "_id": "req_049",
+      "_type": "request",
+      "parentId": "fld_45",
+      "name": "Pull incremental (desde serverTime)",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/sync/pull?since={{ _.serverTime }}",
+      "description": "",
+      "metaSortKey": 49,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.accessToken }}"
+      },
+      "body": {},
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.serverTime) insomnia.environment.set('serverTime', body.serverTime);\n"
+    },
+    {
+      "_id": "fld_50",
+      "_type": "request_group",
+      "parentId": "wrk_healthymind",
+      "name": "8. Administración (RF01)",
+      "description": "Ejecutar primero Login administrador. El admin inicial de desarrollo está en appsettings.Development.json.",
+      "metaSortKey": 50
+    },
+    {
+      "_id": "req_051",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "Login administrador",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/auth/login",
+      "description": "",
+      "metaSortKey": 51,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {},
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"usernameOrEmail\": \"{{ _.adminUsername }}\",\n  \"password\": \"{{ _.adminPassword }}\",\n  \"deviceId\": \"insomnia-admin\",\n  \"deviceName\": \"Insomnia\"\n}"
+      },
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.accessToken) insomnia.environment.set('adminToken', body.accessToken);\n"
+    },
+    {
+      "_id": "req_052",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "Buscar usuarios",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/admin/users?search={{ _.username }}&page=1&pageSize=20",
+      "description": "Filtros opcionales: search, status (Active | Suspended).",
+      "metaSortKey": 52,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {},
+      "afterResponseScript": "const body = insomnia.response.json();\nif (body && body.items && body.items[0] && body.items[0].id) insomnia.environment.set('targetUserId', body.items && body.items[0] && body.items[0].id);\n"
+    },
+    {
+      "_id": "req_053",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "Ver usuario",
+      "method": "GET",
+      "url": "{{ _.baseUrl }}/api/admin/users/{{ _.targetUserId }}",
+      "description": "",
+      "metaSortKey": 53,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_054",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "Crear usuario",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/admin/users",
+      "description": "role: User o Admin.",
+      "metaSortKey": 54,
+      "headers": [
+        {
+          "name": "Content-Type",
+          "value": "application/json"
+        }
+      ],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {
+        "mimeType": "application/json",
+        "text": "{\n  \"username\": \"coach.demo\",\n  \"email\": \"coach.demo@healthymind.local\",\n  \"firstName\": \"Coach\",\n  \"lastName\": \"Demo\",\n  \"password\": \"Clave1234\",\n  \"role\": \"User\",\n  \"timeZoneId\": \"America/Guayaquil\"\n}"
+      }
+    },
+    {
+      "_id": "req_055",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "Suspender cuenta",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/api/admin/users/{{ _.targetUserId }}/suspend",
+      "description": "Corta al instante: el access token deja de servir y se cierran sus sesiones.",
+      "metaSortKey": 55,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_056",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "Reactivar cuenta",
+      "method": "PATCH",
+      "url": "{{ _.baseUrl }}/api/admin/users/{{ _.targetUserId }}/reactivate",
+      "description": "",
+      "metaSortKey": 56,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_057",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "IA: generar ya para un usuario",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/admin/recommendations/users/{{ _.targetUserId }}",
+      "description": "Prueba la API key de Groq sin esperar al proceso automático. 204 si el usuario no tiene hábitos; 503 si Groq no está configurado o falla.",
+      "metaSortKey": 57,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {}
+    },
+    {
+      "_id": "req_058",
+      "_type": "request",
+      "parentId": "fld_50",
+      "name": "IA: correr la generación automática ahora",
+      "method": "POST",
+      "url": "{{ _.baseUrl }}/api/admin/recommendations/run",
+      "description": "",
+      "metaSortKey": 58,
+      "headers": [],
+      "parameters": [],
+      "authentication": {
+        "type": "bearer",
+        "token": "{{ _.adminToken }}"
+      },
+      "body": {}
+    }
+  ]
+}

@@ -1,0 +1,60 @@
+# Base de datos para desarrollo. Levantar con:  docker compose up -d
+# pgAdmin (opcional, en el navegador):          docker compose --profile tools up -d   -> http://localhost:5050
+# API también en contenedor (opcional):         docker compose --profile api up -d --build
+name: healthymind
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: healthymind-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: healthymind
+      POSTGRES_USER: healthymind
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-healthymind_dev}
+      TZ: America/Guayaquil
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthymind -d healthymind"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    image: dpage/pgadmin4:9
+    container_name: healthymind-pgadmin
+    profiles: ["tools"]
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@healthymind.dev
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD:-admin_dev}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "5050:80"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    build:
+      context: .
+      dockerfile: src/HealthyMind.Api/Dockerfile
+    container_name: healthymind-api
+    profiles: ["api"]
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__HealthyMind: Host=postgres;Port=5432;Database=healthymind;Username=healthymind;Password=${POSTGRES_PASSWORD:-healthymind_dev}
+      Groq__ApiKey: ${GROQ_API_KEY:-}
+      Groq__Model: ${GROQ_MODEL:-openai/gpt-oss-120b}
+    ports:
+      - "5080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres-data:

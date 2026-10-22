@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/HealthyMind.Api/HealthyMind.Api.csproj" />
+    <Project Path="src/HealthyMind.Application/HealthyMind.Application.csproj" />
+    <Project Path="src/HealthyMind.Domain/HealthyMind.Domain.csproj" />
+    <Project Path="src/HealthyMind.Infrastructure/HealthyMind.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/HealthyMind.IntegrationTests/HealthyMind.IntegrationTests.csproj" />
+    <Project Path="tests/HealthyMind.UnitTests/HealthyMind.UnitTests.csproj" />
+  </Folder>
+</Solution>
