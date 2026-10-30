@@ -37,4 +37,10 @@ public interface IRecommendationGenerationUseCases
 
     /// <summary>Genera ya para un usuario. Devuelve null si todavía no tiene hábitos.</summary>
     Task<RecommendationResponse?> GenerateForUserAsync(Guid userId, CancellationToken cancellationToken);
+
+    /// <summary>
+    /// El usuario pide una al momento. Si pidió hace muy poco devuelve la última sin llamar a la IA.
+    /// Lanza <see cref="Common.ForbiddenException"/> si el servidor no lo permite.
+    /// </summary>
+    Task<RecommendationResponse?> GenerateOnDemandAsync(Guid userId, CancellationToken cancellationToken);
 }

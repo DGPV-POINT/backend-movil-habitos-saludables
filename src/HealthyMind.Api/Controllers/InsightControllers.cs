@@ -38,10 +38,26 @@ public sealed class StatisticsController(IStatisticsUseCases statistics) : ApiCo
         statistics.GetRangeAsync(CurrentUserId, from, to, cancellationToken);
 }
 
-/// <summary>Recomendaciones de la IA (RF05). Se generan automáticamente; aquí solo se consultan.</summary>
+/// <summary>Recomendaciones de la IA (RF05). Se generan automáticamente; aquí se consultan.</summary>
 [Route("api/recommendations")]
-public sealed class RecommendationsController(IRecommendationUseCases recommendations) : ApiControllerBase
+public sealed class RecommendationsController(
+    IRecommendationUseCases recommendations,
+    IRecommendationGenerationUseCases generation) : ApiControllerBase
 {
+    /// <summary>
+    /// Pide una al momento (modo presentación de la app). Solo si el servidor lo permite
+    /// (<c>Recommendations:AllowOnDemand</c>); 204 si el usuario todavía no tiene hábitos.
+    /// </summary>
+    [HttpPost("now")]
+    [ProducesResponseType<RecommendationResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public async Task<ActionResult<RecommendationResponse>> Now(CancellationToken cancellationToken)
+    {
+        var recommendation = await generation.GenerateOnDemandAsync(CurrentUserId, cancellationToken);
+        return recommendation is null ? NoContent() : Ok(recommendation);
+    }
+
     /// <summary>La más reciente; 204 si todavía no hay ninguna.</summary>
     [HttpGet("latest")]
     [ProducesResponseType<RecommendationResponse>(StatusCodes.Status200OK)]

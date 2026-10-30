@@ -66,6 +66,14 @@ public sealed class AuthFlowTests(ApiFactory factory)
     }
 
     [Fact]
+    public async Task On_demand_recommendations_are_off_unless_the_server_allows_them()
+    {
+        var (client, _) = await factory.RegisterAsync();
+
+        Assert.Equal(HttpStatusCode.Forbidden, (await client.PostAsync("/api/recommendations/now", null)).StatusCode);
+    }
+
+    [Fact]
     public async Task Admin_can_search_users()
     {
         var (_, auth) = await factory.RegisterAsync();

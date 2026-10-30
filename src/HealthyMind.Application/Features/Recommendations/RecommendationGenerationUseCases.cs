@@ -1,3 +1,4 @@
+using HealthyMind.Application.Common;
 using HealthyMind.Application.Features.Statistics;
 using HealthyMind.Application.Ports.In;
 using HealthyMind.Application.Ports.Out;
@@ -78,6 +79,23 @@ internal sealed class RecommendationGenerationUseCases(
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
         return RecommendationResponse.From(recommendation);
+    }
+
+    public async Task<RecommendationResponse?> GenerateOnDemandAsync(Guid userId, CancellationToken cancellationToken)
+    {
+        var settings = options.Value;
+        if (!settings.AllowOnDemand)
+        {
+            throw new ForbiddenException("Este servidor no genera recomendaciones a pedido.");
+        }
+
+        var latest = await recommendations.GetLatestAsync(userId, cancellationToken);
+        if (latest is not null && latest.CreatedAt > timeProvider.GetUtcNow().AddMinutes(-settings.OnDemandMinMinutes))
+        {
+            return RecommendationResponse.From(latest);
+        }
+
+        return await GenerateForUserAsync(userId, cancellationToken);
     }
 
     private static HabitActivitySnapshot BuildSnapshot(
