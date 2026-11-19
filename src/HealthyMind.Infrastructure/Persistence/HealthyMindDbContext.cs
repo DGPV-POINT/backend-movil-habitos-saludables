@@ -12,6 +12,8 @@ public sealed class HealthyMindDbContext(DbContextOptions<HealthyMindDbContext> 
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
 
+    public DbSet<UserCode> UserCodes => Set<UserCode>();
+
     public DbSet<Habit> Habits => Set<Habit>();
 
     public DbSet<HabitRecord> HabitRecords => Set<HabitRecord>();

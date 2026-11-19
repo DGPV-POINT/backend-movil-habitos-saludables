@@ -28,6 +28,8 @@ public static class DependencyInjection
                 "La sección Recommendations tiene valores inválidos.")
             .ValidateOnStart();
 
+        services.AddOptions<AdminOptions>().BindConfiguration(AdminOptions.SectionName);
+
         services.AddOptions<PushOptions>()
             .BindConfiguration(PushOptions.SectionName)
             .Validate(options => options.StaleAfterDays > 0, "Push:StaleAfterDays debe ser mayor que cero.")
@@ -39,6 +41,7 @@ public static class DependencyInjection
         // Piezas internas compartidas entre casos de uso.
         services.AddScoped<UserRegistration>();
         services.AddScoped<SessionIssuer>();
+        services.AddScoped<AccountCodes>();
         services.AddScoped<OwnedResources>();
         services.AddScoped<ComplianceReader>();
 

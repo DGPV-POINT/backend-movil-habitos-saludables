@@ -58,7 +58,45 @@ public sealed class User : Entity
     /// <summary>Hasta cuándo vio las recomendaciones (en cualquier teléfono): apaga el punto de la campana en todos.</summary>
     public DateTimeOffset? RecommendationsSeenAt { get; private set; }
 
+    /// <summary>Cuándo confirmó su correo con el código enviado. Sin esto no puede iniciar sesión.</summary>
+    public DateTimeOffset? EmailVerifiedAt { get; private set; }
+
     public bool IsActive => Status == UserStatus.Active;
+
+    public bool IsEmailVerified => EmailVerifiedAt is not null;
+
+    public void MarkEmailVerified(DateTimeOffset now)
+    {
+        if (EmailVerifiedAt is null)
+        {
+            EmailVerifiedAt = now.ToUniversalTime();
+            UpdatedAt = EmailVerifiedAt.Value;
+        }
+    }
+
+    public void ChangeRole(UserRole role, DateTimeOffset now)
+    {
+        if (!Enum.IsDefined(role))
+        {
+            throw new DomainException("El rol no es válido.");
+        }
+
+        Role = role;
+        UpdatedAt = now.ToUniversalTime();
+    }
+
+    /// <summary>
+    /// Nueva contraseña con un código enviado al correo: prueba que el correo es suyo
+    /// y quita el bloqueo por intentos fallidos.
+    /// </summary>
+    public void ResetPassword(string passwordHash, DateTimeOffset now)
+    {
+        SetPasswordHash(passwordHash);
+        FailedLoginAttempts = 0;
+        LockoutEndsAt = null;
+        MarkEmailVerified(now);
+        UpdatedAt = now.ToUniversalTime();
+    }
 
     /// <summary>Solo avanza: un teléfono con la hora atrasada no vuelve a encender el aviso en los demás.</summary>
     public void MarkRecommendationsSeen(DateTimeOffset seenAt, DateTimeOffset now)

@@ -27,6 +27,22 @@ internal sealed class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasIndex(user => user.Role);
 
         builder.Ignore(user => user.IsActive);
+        builder.Ignore(user => user.IsEmailVerified);
+    }
+}
+
+internal sealed class UserCodeConfiguration : IEntityTypeConfiguration<UserCode>
+{
+    public void Configure(EntityTypeBuilder<UserCode> builder)
+    {
+        builder.ToTable("user_codes");
+        builder.HasKey(code => code.Id);
+        builder.Property(code => code.Id).ValueGeneratedNever();
+        builder.Property(code => code.CodeHash).HasMaxLength(128).IsRequired();
+        builder.Property(code => code.Purpose).HasConversion<string>().HasMaxLength(20);
+
+        builder.HasIndex(code => new { code.UserId, code.Purpose, code.CreatedAt });
+        builder.HasOne<User>().WithMany().HasForeignKey(code => code.UserId).OnDelete(DeleteBehavior.Cascade);
     }
 }
 

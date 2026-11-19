@@ -27,6 +27,21 @@ internal sealed class UserRepository(HealthyMindDbContext context) : IUserReposi
     public Task<bool> AnyAdminAsync(CancellationToken cancellationToken) =>
         context.Users.AnyAsync(user => user.Role == UserRole.Admin, cancellationToken);
 
+    public Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken) =>
+        context.Users.CountAsync(user => user.Role == UserRole.Admin && user.Status == UserStatus.Active, cancellationToken);
+
+    public Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken)
+    {
+        var normalized = User.NormalizeEmail(email);
+        return context.Users.FirstOrDefaultAsync(user => user.Email == normalized, cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<User>> ListByEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken cancellationToken)
+    {
+        var normalized = emails.Select(User.NormalizeEmail).Distinct().ToList();
+        return await context.Users.Where(user => normalized.Contains(user.Email)).ToListAsync(cancellationToken);
+    }
+
     public Task<bool> IsActiveAsync(Guid id, CancellationToken cancellationToken) =>
         context.Users.AnyAsync(user => user.Id == id && user.Status == UserStatus.Active, cancellationToken);
 
@@ -92,4 +107,23 @@ internal sealed class RefreshTokenRepository(HealthyMindDbContext context) : IRe
             .ToListAsync(cancellationToken);
 
     public void Add(RefreshToken token) => context.RefreshTokens.Add(token);
+}
+
+internal sealed class UserCodeRepository(HealthyMindDbContext context) : IUserCodeRepository
+{
+    public Task<UserCode?> GetLatestAsync(Guid userId, UserCodePurpose purpose, CancellationToken cancellationToken) =>
+        context.UserCodes
+            .Where(code => code.UserId == userId && code.Purpose == purpose)
+            .OrderByDescending(code => code.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+    public async Task<IReadOnlyList<UserCode>> ListUnusedAsync(
+        Guid userId,
+        UserCodePurpose purpose,
+        CancellationToken cancellationToken) =>
+        await context.UserCodes
+            .Where(code => code.UserId == userId && code.Purpose == purpose && code.UsedAt == null)
+            .ToListAsync(cancellationToken);
+
+    public void Add(UserCode code) => context.UserCodes.Add(code);
 }

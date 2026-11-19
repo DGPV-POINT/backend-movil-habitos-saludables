@@ -97,5 +97,6 @@ public static class RevocationReasons
     public const string ReuseDetected = "Reutilización de token detectada";
     public const string PasswordChanged = "Cambio de contraseña";
     public const string AccountSuspended = "Cuenta suspendida";
+    public const string RoleChanged = "Cambio de rol";
     public const string RevokedByUser = "Revocada por el usuario";
 }

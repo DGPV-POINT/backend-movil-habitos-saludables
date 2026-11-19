@@ -5,6 +5,7 @@ using HealthyMind.Application.Ports.In;
 using HealthyMind.Application.Ports.Out;
 using HealthyMind.Domain.Users;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace HealthyMind.Application.Features.Users;
 
@@ -12,6 +13,8 @@ internal sealed class UserAdministrationUseCases(
     IUserRepository users,
     UserRegistration registration,
     SessionIssuer sessions,
+    IAdminDashboardReader dashboard,
+    IOptions<AdminOptions> adminOptions,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     IValidator<CreateUserRequest> createValidator,
@@ -48,8 +51,80 @@ internal sealed class UserAdministrationUseCases(
                 request.TimeZoneId),
             cancellationToken);
 
+        // La crea el administrador: el correo se da por confirmado.
+        user.MarkEmailVerified(timeProvider.GetUtcNow());
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return UserProfileResponse.From(user);
+    }
+
+    public async Task<UserProfileResponse> ChangeRoleAsync(
+        Guid adminId,
+        Guid userId,
+        ChangeRoleRequest request,
+        CancellationToken cancellationToken)
+    {
+        var user = await GetUserAsync(userId, cancellationToken);
+        if (user.Role == request.Role)
+        {
+            return UserProfileResponse.From(user);
+        }
+
+        if (request.Role != UserRole.Admin)
+        {
+            if (adminId == userId)
+            {
+                throw new ForbiddenException("No puedes quitarte el rol de administrador a ti mismo.");
+            }
+
+            if (adminOptions.Value.IsAdminEmail(user.Email))
+            {
+                throw new ForbiddenException("Este correo es administrador por configuración del servidor.");
+            }
+
+            if (user.IsActive && await users.CountActiveAdminsAsync(cancellationToken) <= 1)
+            {
+                throw new ForbiddenException("Debe quedar al menos un administrador activo.");
+            }
+        }
+
+        user.ChangeRole(request.Role, timeProvider.GetUtcNow());
+
+        // El rol va dentro del access token: se cierran sus sesiones para que entre con el permiso nuevo.
+        await sessions.RevokeAllAsync(user.Id, RevocationReasons.RoleChanged, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("El administrador {AdminId} cambió el rol de {UserId} a {Role}.", adminId, userId, request.Role);
+        return UserProfileResponse.From(user);
+    }
+
+    public async Task<AdminDashboardResponse> GetDashboardAsync(Guid adminId, CancellationToken cancellationToken)
+    {
+        var admin = await GetUserAsync(adminId, cancellationToken);
+        return AdminDashboardResponse.From(
+            await dashboard.ReadAsync(timeProvider.GetUtcNow(), admin.GetTimeZone(), cancellationToken));
+    }
+
+    public async Task<int> PromoteConfiguredAdminsAsync(CancellationToken cancellationToken)
+    {
+        var emails = adminOptions.Value.Emails.Where(email => !string.IsNullOrWhiteSpace(email)).ToList();
+        if (emails.Count == 0)
+        {
+            return 0;
+        }
+
+        var now = timeProvider.GetUtcNow();
+        var promoted = 0;
+        foreach (var user in await users.ListByEmailsAsync(emails, cancellationToken))
+        {
+            if (user.Role != UserRole.Admin)
+            {
+                user.ChangeRole(UserRole.Admin, now);
+                promoted++;
+                logger.LogInformation("Se promovió a administrador la cuenta {UserId} (configuración Admin:Emails).", user.Id);
+            }
+        }
+
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return promoted;
     }
 
     public async Task<UserProfileResponse> SuspendAsync(Guid adminId, Guid userId, CancellationToken cancellationToken)

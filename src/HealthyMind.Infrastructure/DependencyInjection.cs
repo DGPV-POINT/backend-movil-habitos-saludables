@@ -1,6 +1,7 @@
 using HealthyMind.Application.Ports.Out;
 using HealthyMind.Infrastructure.Ai;
 using HealthyMind.Infrastructure.BackgroundJobs;
+using HealthyMind.Infrastructure.Email;
 using HealthyMind.Infrastructure.Notifications;
 using HealthyMind.Infrastructure.Persistence;
 using HealthyMind.Infrastructure.Persistence.Repositories;
@@ -21,6 +22,10 @@ public static class DependencyInjection
         AddPersistence(services, configuration);
         AddSecurity(services);
         AddAi(services, configuration);
+
+        // Correo (códigos de verificación y recuperación): sin servidor SMTP solo queda en el log.
+        services.AddOptions<EmailOptions>().BindConfiguration(EmailOptions.SectionName);
+        services.AddSingleton<IEmailSender, SmtpEmailSender>();
 
         // Avisos push: sin credenciales queda apagado y la API funciona igual.
         services.AddOptions<FirebaseOptions>().BindConfiguration(FirebaseOptions.SectionName);
@@ -57,6 +62,8 @@ public static class DependencyInjection
         services.AddScoped<IUnitOfWork, UnitOfWork>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRefreshTokenRepository, RefreshTokenRepository>();
+        services.AddScoped<IUserCodeRepository, UserCodeRepository>();
+        services.AddScoped<IAdminDashboardReader, AdminDashboardReader>();
         services.AddScoped<IHabitRepository, HabitRepository>();
         services.AddScoped<IHabitRecordRepository, HabitRecordRepository>();
         services.AddScoped<IRecommendationRepository, RecommendationRepository>();

@@ -51,6 +51,12 @@ services:
       Recommendations__AllowOnDemand: ${ALLOW_ON_DEMAND:-false}
       # Cuenta de servicio de Firebase en base64 (una línea). Vacío = sin avisos push.
       Firebase__CredentialsBase64: ${FIREBASE_CREDENTIALS_B64:-}
+      # Correo saliente para los códigos de verificación y recuperación. Vacío = el código solo queda en el log.
+      Email__SmtpHost: ${SMTP_HOST:-}
+      Email__SmtpPort: ${SMTP_PORT:-587}
+      Email__SmtpUser: ${SMTP_USER:-}
+      Email__SmtpPassword: ${SMTP_PASSWORD:-}
+      Email__From: ${SMTP_FROM:-}
       BootstrapAdmin__Username: ${ADMIN_USERNAME:-}
       BootstrapAdmin__Email: ${ADMIN_EMAIL:-}
       BootstrapAdmin__Password: ${ADMIN_PASSWORD:-}

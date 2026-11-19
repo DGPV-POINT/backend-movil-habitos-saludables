@@ -27,6 +27,14 @@ public interface IUserAdministrationUseCases
 
     Task<UserProfileResponse> ReactivateAsync(Guid userId, CancellationToken cancellationToken);
 
+    /// <summary>Da o quita el rol Admin. No permite quedarse sin administradores ni quitárselo a uno mismo.</summary>
+    Task<UserProfileResponse> ChangeRoleAsync(Guid adminId, Guid userId, ChangeRoleRequest request, CancellationToken cancellationToken);
+
+    Task<AdminDashboardResponse> GetDashboardAsync(Guid adminId, CancellationToken cancellationToken);
+
+    /// <summary>Al arrancar: da el rol Admin a las cuentas de <c>Admin:Emails</c> que ya existen.</summary>
+    Task<int> PromoteConfiguredAdminsAsync(CancellationToken cancellationToken);
+
     /// <summary>Crea el primer administrador si todavía no hay ninguno. Devuelve si lo creó.</summary>
     Task<bool> EnsureAdminExistsAsync(BootstrapAdminRequest request, CancellationToken cancellationToken);
 }

@@ -86,6 +86,72 @@ public sealed class AuthFlowTests(ApiFactory factory)
         Assert.Equal(auth.User.Id, Assert.Single(page!.Items).Id);
     }
 
+    [Fact]
+    public async Task Account_is_unusable_until_the_email_code_is_entered()
+    {
+        var client = factory.CreateClient();
+        var username = "v" + Guid.NewGuid().ToString("N")[..10];
+        var email = $"{username}@test.com";
+        var register = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new RegisterRequest(username, email, "Ana", "Pérez", "Clave1234", "d1", null, null),
+            ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.Created, register.StatusCode);
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(username, "Clave1234", "d1", null), ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.Forbidden, login.StatusCode);
+        Assert.Contains(EmailNotVerifiedException.Code, await login.Content.ReadAsStringAsync());
+
+        var wrong = await client.PostAsJsonAsync("/api/auth/email/verify", new VerifyEmailRequest(email, "000000", "d1", null), ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.Unauthorized, wrong.StatusCode);
+
+        var ok = await client.PostAsJsonAsync(
+            "/api/auth/email/verify",
+            new VerifyEmailRequest(email, factory.Mail.LastCodeFor(email), "d1", null),
+            ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.OK, ok.StatusCode);
+    }
+
+    [Fact]
+    public async Task Forgotten_password_is_replaced_with_the_emailed_code_and_closes_sessions()
+    {
+        var (_, auth) = await factory.RegisterAsync("phone-r");
+        var client = factory.CreateClient();
+
+        var unknown = await client.PostAsJsonAsync("/api/auth/password/forgot", new EmailRequest("nadie@test.com"), ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.NoContent, unknown.StatusCode); // no delata qué correos existen
+
+        await client.PostAsJsonAsync("/api/auth/password/forgot", new EmailRequest(auth.User.Email), ApiFactory.Json);
+        var reset = await client.PostAsJsonAsync(
+            "/api/auth/password/reset",
+            new ResetPasswordRequest(auth.User.Email, factory.Mail.LastCodeFor(auth.User.Email), "NuevaClave99"),
+            ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.NoContent, reset.StatusCode);
+
+        var oldSession = await client.PostAsJsonAsync("/api/auth/refresh", new RefreshRequest(auth.RefreshToken, "phone-r"), ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.Unauthorized, oldSession.StatusCode);
+
+        var login = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(auth.User.Email, "NuevaClave99", "phone-r", null), ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.OK, login.StatusCode);
+    }
+
+    [Fact]
+    public async Task Admin_promotes_a_user_and_sees_the_dashboard()
+    {
+        var (_, auth) = await factory.RegisterAsync();
+        var admin = await LoginAdminAsync();
+
+        var promoted = await admin.PatchAsJsonAsync(
+            $"/api/admin/users/{auth.User.Id}/role",
+            new ChangeRoleRequest(Domain.Users.UserRole.Admin),
+            ApiFactory.Json);
+        Assert.Equal(HttpStatusCode.OK, promoted.StatusCode);
+
+        var dashboard = await admin.GetFromJsonAsync<AdminDashboardResponse>("/api/admin/dashboard", ApiFactory.Json);
+        Assert.True(dashboard!.Admins >= 2);
+        Assert.Equal(14, dashboard.SignUpsLast14Days.Count);
+    }
+
     private async Task<HttpClient> LoginAdminAsync()
     {
         var client = factory.CreateClient();

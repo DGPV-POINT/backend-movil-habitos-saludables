@@ -60,14 +60,17 @@ static async Task PrepareDatabaseAsync(WebApplication app)
         await app.Services.MigrateDatabaseAsync();
     }
 
+    await using var scope = app.Services.CreateAsyncScope();
+    var administration = scope.ServiceProvider.GetRequiredService<IUserAdministrationUseCases>();
+
     var admin = app.Configuration.GetSection("BootstrapAdmin").Get<BootstrapAdminRequest>();
     if (admin is not null && !string.IsNullOrWhiteSpace(admin.Password))
     {
-        await using var scope = app.Services.CreateAsyncScope();
-        await scope.ServiceProvider
-            .GetRequiredService<IUserAdministrationUseCases>()
-            .EnsureAdminExistsAsync(admin, CancellationToken.None);
+        await administration.EnsureAdminExistsAsync(admin, CancellationToken.None);
     }
+
+    // Los correos de Admin:Emails que ya tienen cuenta pasan a ser administradores.
+    await administration.PromoteConfiguredAdminsAsync(CancellationToken.None);
 }
 
 /// <summary>Punto de entrada visible para las pruebas de integración.</summary>

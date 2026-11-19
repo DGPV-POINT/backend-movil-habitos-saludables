@@ -26,6 +26,8 @@ internal sealed class GlobalExceptionHandler(
             AuthenticationFailedException => Problem(StatusCodes.Status401Unauthorized, "No autenticado", exception.Message),
             ForbiddenException => Problem(StatusCodes.Status403Forbidden, "No permitido", exception.Message),
             AiProviderUnavailableException => Problem(StatusCodes.Status503ServiceUnavailable, "IA no disponible", exception.Message),
+            EmailDeliveryException => Problem(StatusCodes.Status503ServiceUnavailable, "Correo no disponible", exception.Message),
+            EmailNotVerifiedException notVerified => EmailNotVerified(notVerified),
             _ => null,
         };
 
@@ -61,6 +63,15 @@ internal sealed class GlobalExceptionHandler(
             Title = "Datos inválidos",
             Detail = "Revisa los campos marcados.",
         };
+    }
+
+    // El móvil reconoce el caso por "code" y abre la pantalla para escribir el código.
+    private static ProblemDetails EmailNotVerified(EmailNotVerifiedException exception)
+    {
+        var problem = Problem(StatusCodes.Status403Forbidden, "Correo sin confirmar", exception.Message);
+        problem.Extensions["code"] = EmailNotVerifiedException.Code;
+        problem.Extensions["email"] = exception.Email;
+        return problem;
     }
 
     private static ProblemDetails Problem(int status, string title, string detail) =>
