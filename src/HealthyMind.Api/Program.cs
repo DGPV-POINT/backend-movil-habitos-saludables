@@ -41,6 +41,9 @@ else
     app.UseHttpsRedirection();
 }
 
+// Política de privacidad (wwwroot/privacidad.html): la abre la bienvenida del móvil, sin sesión.
+app.UseStaticFiles();
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseRateLimiter();
