@@ -1,0 +1,66 @@
+# HealthyMind en el servidor compartido 192.168.1.47 (proyecto temporal, aislado de lo demás).
+# Usar SIEMPRE con el nombre de proyecto:  docker compose -p healthymind -f docker-compose.prod.yml --env-file .env ...
+# - Un solo puerto publicado: 5080 (solo lo usa el IIS 192.168.1.97).
+# - Postgres propio, sin puertos publicados, datos en /srv (no en /var).
+# - Límites de CPU/RAM y de logs para no afectar a los contenedores de producción.
+name: healthymind
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  hm-postgres:
+    image: postgres:17-alpine
+    container_name: hm-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: healthymind
+      POSTGRES_USER: healthymind
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Falta POSTGRES_PASSWORD en .env}
+      TZ: America/Guayaquil
+    volumes:
+      - /srv/healthymind/pgdata:/var/lib/postgresql/data
+    networks: [hm-net]
+    cpus: 0.5
+    mem_limit: 512m
+    logging: *logging
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U healthymind -d healthymind"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  hm-api:
+    image: healthymind-api:${API_TAG:-1.0}
+    container_name: hm-api
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_HTTP_PORTS: "8080"
+      TZ: America/Guayaquil
+      AllowedHosts: maui.appservices.com.ec
+      ReverseProxy__KnownProxies__0: 192.168.1.97
+      Database__MigrateOnStartup: "true"
+      ConnectionStrings__HealthyMind: Host=hm-postgres;Port=5432;Database=healthymind;Username=healthymind;Password=${POSTGRES_PASSWORD}
+      Jwt__SigningKey: ${JWT_SIGNING_KEY:?Falta JWT_SIGNING_KEY en .env}
+      Groq__ApiKey: ${GROQ_API_KEY:-}
+      Recommendations__AllowOnDemand: ${ALLOW_ON_DEMAND:-false}
+      BootstrapAdmin__Username: ${ADMIN_USERNAME:-}
+      BootstrapAdmin__Email: ${ADMIN_EMAIL:-}
+      BootstrapAdmin__Password: ${ADMIN_PASSWORD:-}
+    ports:
+      - "5080:8080"
+    networks: [hm-net]
+    depends_on:
+      hm-postgres:
+        condition: service_healthy
+    cpus: 0.5
+    mem_limit: 512m
+    logging: *logging
+
+networks:
+  hm-net:
+    name: hm-net

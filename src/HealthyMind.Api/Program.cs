@@ -21,9 +21,12 @@ builder.Services.AddJwtAuthentication();
 builder.Services.AddAuthRateLimiting(builder.Configuration);
 builder.Services.AddOpenApi(options => options.AddDocumentTransformer<BearerSecurityTransformer>());
 builder.Services.AddHealthChecks().AddDbContextCheck<HealthyMindDbContext>("postgres");
+builder.Services.AddReverseProxySupport(builder.Configuration);
 
 var app = builder.Build();
 
+// Primero: detrás del IIS, la IP real del cliente y el esquema https vienen en X-Forwarded-*.
+app.UseForwardedHeaders();
 app.UseExceptionHandler();
 app.UseStatusCodePages();
 
