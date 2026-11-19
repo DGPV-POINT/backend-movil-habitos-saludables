@@ -41,7 +41,8 @@ services:
       ASPNETCORE_ENVIRONMENT: Production
       ASPNETCORE_HTTP_PORTS: "8080"
       TZ: America/Guayaquil
-      AllowedHosts: maui.appservices.com.ec
+      # El ARR del IIS no conserva el Host (opción global del IIS, no se toca): llega como 192.168.1.47.
+      AllowedHosts: maui.appservices.com.ec;192.168.1.47;localhost
       ReverseProxy__KnownProxies__0: 192.168.1.97
       Database__MigrateOnStartup: "true"
       ConnectionStrings__HealthyMind: Host=hm-postgres;Port=5432;Database=healthymind;Username=healthymind;Password=${POSTGRES_PASSWORD}
