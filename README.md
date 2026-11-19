@@ -30,7 +30,7 @@ Infrastructure implementa los puertos de Application; Api compone todo.
 1. Instalar [.NET SDK 10](https://dotnet.microsoft.com/download/dotnet/10.0) y Docker Desktop (abrirlo antes de seguir).
 2. Clonar y entrar a la carpeta:
    ```bash
-   git clone https://github.com/mguerron22/backend-movil-habitos-saludables.git
+   git clone https://github.com/DGPV-POINT/backend-movil-habitos-saludables.git
    ```
 3. Cada uno pone **su propia** key de Groq (gratis en https://console.groq.com/keys). Queda guardada en tu PC,
    fuera del repositorio; nunca la pongas en un archivo del proyecto ni la subas:
