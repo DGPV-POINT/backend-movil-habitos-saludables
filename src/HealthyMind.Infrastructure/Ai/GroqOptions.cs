@@ -19,6 +19,9 @@ public sealed class GroqOptions
     [Required]
     public string Model { get; set; } = "openai/gpt-oss-120b";
 
+    /// <summary>Se prueba si el modelo principal falla (retirado, saturado). Vacío: sin respaldo.</summary>
+    public string? FallbackModel { get; set; } = "openai/gpt-oss-20b";
+
     [Range(0, 2)]
     public double Temperature { get; set; } = 0.4;
 

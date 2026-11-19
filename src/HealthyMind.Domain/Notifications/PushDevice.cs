@@ -25,24 +25,28 @@ public sealed class PushDevice : Entity
 
     public string Token { get; private set; } = null!;
 
+    /// <summary>El usuario quiere los avisos de la IA en este teléfono (lo elige en Perfil).</summary>
+    public bool RecommendationsEnabled { get; private set; } = true;
+
     public DateTimeOffset UpdatedAt { get; private set; }
 
-    public static PushDevice Register(Guid userId, string deviceId, string token, DateTimeOffset now)
+    public static PushDevice Register(Guid userId, string deviceId, string token, bool recommendationsEnabled, DateTimeOffset now)
     {
         Guard.NotEmpty(userId, "usuario");
-        return new PushDevice(Guid.CreateVersion7())
+        var device = new PushDevice(Guid.CreateVersion7())
         {
             UserId = userId,
             DeviceId = Guard.Text(deviceId, "dispositivo", RefreshToken.DeviceIdMaxLength),
-            Token = Guard.Text(token, "token de notificaciones", TokenMaxLength),
-            UpdatedAt = now.ToUniversalTime(),
         };
+        device.Update(token, recommendationsEnabled, now);
+        return device;
     }
 
-    /// <summary>Firebase renueva el token de vez en cuando: se reemplaza.</summary>
-    public void UpdateToken(string token, DateTimeOffset now)
+    /// <summary>Firebase renueva el token de vez en cuando, y el usuario puede cambiar su preferencia.</summary>
+    public void Update(string token, bool recommendationsEnabled, DateTimeOffset now)
     {
         Token = Guard.Text(token, "token de notificaciones", TokenMaxLength);
+        RecommendationsEnabled = recommendationsEnabled;
         UpdatedAt = now.ToUniversalTime();
     }
 }

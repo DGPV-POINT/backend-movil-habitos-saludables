@@ -39,6 +39,18 @@ public sealed class AiRecommendation : Entity
 
     public DateTimeOffset CreatedAt { get; private init; }
 
+    /// <summary>Lo que dijo el usuario: true "me sirvió", false "no me sirvió", null sin respuesta.</summary>
+    public bool? WasHelpful { get; private set; }
+
+    public DateTimeOffset? FeedbackAt { get; private set; }
+
+    /// <summary>Se puede cambiar de opinión: queda la última respuesta.</summary>
+    public void RateHelpful(bool helpful, DateTimeOffset now)
+    {
+        WasHelpful = helpful;
+        FeedbackAt = now.ToUniversalTime();
+    }
+
     public static AiRecommendation Create(
         Guid userId,
         RecommendationContent content,

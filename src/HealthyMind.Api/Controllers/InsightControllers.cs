@@ -75,6 +75,28 @@ public sealed class RecommendationsController(
         CancellationToken cancellationToken = default) =>
         recommendations.ListAsync(CurrentUserId, new PageRequest(page, pageSize), cancellationToken);
 
+    /// <summary>"Me sirvió" (true) o "No me sirvió" (false). Se puede cambiar.</summary>
+    [HttpPut("{recommendationId:guid}/feedback")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Feedback(
+        Guid recommendationId,
+        RecommendationFeedbackRequest request,
+        CancellationToken cancellationToken)
+    {
+        await recommendations.RateAsync(CurrentUserId, recommendationId, request, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>El usuario abrió la pestaña IA: apaga el aviso de "sin leer" en sus otros teléfonos.</summary>
+    [HttpPut("seen")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    public async Task<IActionResult> Seen(RecommendationsSeenRequest request, CancellationToken cancellationToken)
+    {
+        await recommendations.MarkSeenAsync(CurrentUserId, request, cancellationToken);
+        return NoContent();
+    }
+
     [HttpGet("{recommendationId:guid}")]
     [ProducesResponseType<RecommendationResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]

@@ -24,6 +24,9 @@ internal sealed class RecommendationGenerationUseCases(
     IOptions<RecommendationOptions> options,
     ILogger<RecommendationGenerationUseCases> logger) : IRecommendationGenerationUseCases
 {
+    /// <summary>Recomendaciones anteriores que se le muestran a la IA para que no se repita.</summary>
+    private const int PreviousForContext = 3;
+
     public async Task<int> GenerateDueAsync(CancellationToken cancellationToken)
     {
         var settings = options.Value;
@@ -31,10 +34,18 @@ internal sealed class RecommendationGenerationUseCases(
         var due = await recommendations.ListUsersDueAsync(cutoff, settings.BatchSize, cancellationToken);
         var generated = 0;
 
+        var now = timeProvider.GetUtcNow();
         foreach (var userId in due)
         {
             try
             {
+                // De noche no: el aviso llegaría de madrugada. Queda pendiente para la primera corrida de la mañana.
+                var user = await users.GetByIdAsync(userId, cancellationToken);
+                if (user is null || QuietHours.Contains(user.LocalHour(now), settings.QuietHoursStart, settings.QuietHoursEnd))
+                {
+                    continue;
+                }
+
                 if (await GenerateForUserAsync(userId, cancellationToken) is not null)
                 {
                     generated++;
@@ -72,8 +83,23 @@ internal sealed class RecommendationGenerationUseCases(
         var report = ComplianceCalculator.Calculate(userHabits, periodRecords, from, to, user.GetTimeZone());
         var (current, best) = await compliance.ReadStreaksAsync(user, to, cancellationToken);
 
-        var snapshot = BuildSnapshot(report, userHabits, periodRecords, current, best);
-        var content = await aiProvider.GenerateAsync(snapshot, cancellationToken);
+        var previous = await recommendations.ListCreatedSinceAsync(user.Id, null, PreviousForContext, cancellationToken);
+        var snapshot = BuildSnapshot(report, userHabits, periodRecords, current, best) with
+        {
+            Previous = previous.Select(item => new PastAdvice(item.Title, item.FocusHabit, item.WasHelpful)).ToList(),
+        };
+
+        RecommendationContent content;
+        try
+        {
+            content = await aiProvider.GenerateAsync(snapshot, cancellationToken);
+        }
+        catch (AiProviderUnavailableException exception)
+        {
+            // Sin IA el usuario igual recibe su análisis, armado con reglas sobre las mismas cifras.
+            logger.LogWarning(exception, "La IA no respondió: se usa la recomendación por reglas para {UserId}.", user.Id);
+            content = RuleBasedRecommendation.Build(snapshot);
+        }
 
         var recommendation = AiRecommendation.Create(user.Id, content, from, to, now);
         recommendations.Add(recommendation);

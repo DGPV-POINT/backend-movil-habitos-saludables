@@ -55,7 +55,23 @@ public sealed class User : Entity
 
     public DateTimeOffset? LockoutEndsAt { get; private set; }
 
+    /// <summary>Hasta cuándo vio las recomendaciones (en cualquier teléfono): apaga el punto de la campana en todos.</summary>
+    public DateTimeOffset? RecommendationsSeenAt { get; private set; }
+
     public bool IsActive => Status == UserStatus.Active;
+
+    /// <summary>Solo avanza: un teléfono con la hora atrasada no vuelve a encender el aviso en los demás.</summary>
+    public void MarkRecommendationsSeen(DateTimeOffset seenAt, DateTimeOffset now)
+    {
+        var value = (seenAt > now ? now : seenAt).ToUniversalTime();
+        if (RecommendationsSeenAt is null || value > RecommendationsSeenAt)
+        {
+            RecommendationsSeenAt = value;
+        }
+    }
+
+    /// <summary>Hora local del usuario (0–23) en ese instante; sirve para no avisar de madrugada.</summary>
+    public int LocalHour(DateTimeOffset instant) => TimeZoneInfo.ConvertTime(instant, GetTimeZone()).Hour;
 
     public static User Register(
         string username,

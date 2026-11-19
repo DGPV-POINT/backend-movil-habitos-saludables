@@ -3,8 +3,11 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using HealthyMind.Application.Features.Auth;
+using HealthyMind.Application.Ports.Out;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Testcontainers.PostgreSql;
 
 namespace HealthyMind.IntegrationTests;
@@ -38,7 +41,16 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         builder.UseSetting("BootstrapAdmin:Username", "admin");
         builder.UseSetting("BootstrapAdmin:Email", "admin@test.local");
         builder.UseSetting("BootstrapAdmin:Password", "Admin12345");
+
+        // Firebase falso: guarda lo que se habría enviado.
+        builder.ConfigureServices(services =>
+        {
+            services.RemoveAll<IPushSender>();
+            services.AddSingleton<IPushSender>(Push);
+        });
     }
+
+    public RecordingPushSender Push { get; } = new();
 
     public async Task<(HttpClient Client, AuthResponse Auth)> RegisterAsync(string deviceId = "device-1")
     {

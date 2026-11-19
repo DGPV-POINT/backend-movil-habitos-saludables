@@ -28,6 +28,11 @@ public static class DependencyInjection
                 "La sección Recommendations tiene valores inválidos.")
             .ValidateOnStart();
 
+        services.AddOptions<PushOptions>()
+            .BindConfiguration(PushOptions.SectionName)
+            .Validate(options => options.StaleAfterDays > 0, "Push:StaleAfterDays debe ser mayor que cero.")
+            .ValidateOnStart();
+
         services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>(includeInternalTypes: true);
         services.AddSingleton(TimeProvider.System);
 

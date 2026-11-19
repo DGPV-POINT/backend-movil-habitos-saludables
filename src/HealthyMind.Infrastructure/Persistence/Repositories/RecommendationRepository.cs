@@ -18,6 +18,9 @@ internal sealed class RecommendationRepository(HealthyMindDbContext context) : I
     public Task<AiRecommendation?> GetByIdAsync(Guid id, CancellationToken cancellationToken) =>
         context.AiRecommendations.AsNoTracking().FirstOrDefaultAsync(recommendation => recommendation.Id == id, cancellationToken);
 
+    public Task<AiRecommendation?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken) =>
+        context.AiRecommendations.FirstOrDefaultAsync(recommendation => recommendation.Id == id, cancellationToken);
+
     public async Task<PagedResult<AiRecommendation>> ListByUserAsync(
         Guid userId,
         PageRequest page,

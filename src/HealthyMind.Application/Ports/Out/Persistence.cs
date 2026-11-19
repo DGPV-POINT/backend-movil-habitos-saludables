@@ -118,6 +118,9 @@ public interface IRecommendationRepository
 
     Task<AiRecommendation?> GetByIdAsync(Guid id, CancellationToken cancellationToken);
 
+    /// <summary>Con seguimiento de cambios, para grabar la valoración del usuario.</summary>
+    Task<AiRecommendation?> GetForUpdateAsync(Guid id, CancellationToken cancellationToken);
+
     Task<PagedResult<AiRecommendation>> ListByUserAsync(Guid userId, PageRequest page, CancellationToken cancellationToken);
 
     /// <summary>Más recientes primero.</summary>

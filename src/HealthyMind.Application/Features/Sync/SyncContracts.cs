@@ -78,7 +78,8 @@ public sealed record SyncPullResponse(
     bool IsFullSnapshot,
     IReadOnlyList<HabitSyncItem> Habits,
     IReadOnlyList<HabitRecordSyncItem> Records,
-    IReadOnlyList<RecommendationResponse> Recommendations);
+    IReadOnlyList<RecommendationResponse> Recommendations,
+    DateTimeOffset? RecommendationsSeenAt = null);
 
 public sealed record HabitSyncItem(HabitResponse Habit, bool IsDeleted);
 

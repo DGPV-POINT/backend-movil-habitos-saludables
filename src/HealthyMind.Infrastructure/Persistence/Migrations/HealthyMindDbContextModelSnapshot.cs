@@ -181,6 +181,10 @@ namespace HealthyMind.Infrastructure.Persistence.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("device_id");
 
+                    b.Property<bool>("RecommendationsEnabled")
+                        .HasColumnType("boolean")
+                        .HasColumnName("recommendations_enabled");
+
                     b.Property<string>("Token")
                         .IsRequired()
                         .HasMaxLength(4096)
@@ -217,6 +221,10 @@ namespace HealthyMind.Infrastructure.Persistence.Migrations
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("created_at");
+
+                    b.Property<DateTimeOffset?>("FeedbackAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("feedback_at");
 
                     b.Property<string>("FocusHabit")
                         .HasMaxLength(150)
@@ -258,6 +266,10 @@ namespace HealthyMind.Infrastructure.Persistence.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid")
                         .HasColumnName("user_id");
+
+                    b.Property<bool?>("WasHelpful")
+                        .HasColumnType("boolean")
+                        .HasColumnName("was_helpful");
 
                     b.HasKey("Id")
                         .HasName("pk_ai_recommendations");
@@ -380,6 +392,10 @@ namespace HealthyMind.Infrastructure.Persistence.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)")
                         .HasColumnName("password_hash");
+
+                    b.Property<DateTimeOffset?>("RecommendationsSeenAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("recommendations_seen_at");
 
                     b.Property<string>("Role")
                         .IsRequired()

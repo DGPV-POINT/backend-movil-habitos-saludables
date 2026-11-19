@@ -43,8 +43,8 @@ internal sealed class RecommendationBackgroundService(
 
         if (!groqOptions.Value.IsConfigured)
         {
-            logger.LogWarning("Groq:ApiKey no está configurada: no se generarán recomendaciones automáticas.");
-            return;
+            // Sigue corriendo: sin IA las recomendaciones se arman con reglas (RuleBasedRecommendation).
+            logger.LogWarning("Groq:ApiKey no está configurada: las recomendaciones se generarán con reglas, sin IA.");
         }
 
         await Task.Delay(TimeSpan.FromSeconds(settings.InitialDelaySeconds), timeProvider, stoppingToken);
@@ -68,6 +68,13 @@ internal sealed class RecommendationBackgroundService(
             if (generated > 0)
             {
                 logger.LogInformation("Se generaron {Count} recomendaciones automáticas.", generated);
+            }
+
+            // De paso, borra los tokens de teléfonos que desinstalaron la app sin cerrar sesión.
+            var removed = await scope.ServiceProvider.GetRequiredService<IPushUseCases>().RemoveStaleDevicesAsync(stoppingToken);
+            if (removed > 0)
+            {
+                logger.LogInformation("Se borraron {Count} tokens de avisos push abandonados.", removed);
             }
         }
         catch (Exception exception) when (!stoppingToken.IsCancellationRequested)

@@ -9,8 +9,14 @@ public interface IPushDeviceRepository
     /// <summary>Registros con el mismo token (el teléfono cambió de usuario).</summary>
     Task<IReadOnlyList<PushDevice>> ListByTokenAsync(string token, CancellationToken cancellationToken);
 
-    /// <summary>Solo dispositivos con una sesión activa: cerrar sesión o revocarla corta los avisos.</summary>
+    /// <summary>
+    /// Dispositivos con una sesión activa y con los avisos de la IA encendidos:
+    /// cerrar sesión, revocarla o apagar el interruptor corta los avisos.
+    /// </summary>
     Task<IReadOnlyList<PushDevice>> ListReachableAsync(Guid userId, DateTimeOffset now, CancellationToken cancellationToken);
+
+    /// <summary>Borra los tokens sin actualizar desde <paramref name="updatedBefore"/> (app desinstalada sin cerrar sesión).</summary>
+    Task<int> DeleteStaleAsync(DateTimeOffset updatedBefore, CancellationToken cancellationToken);
 
     void Add(PushDevice device);
 
@@ -28,4 +34,7 @@ public interface IPushSender
 
     /// <returns>Los tokens que Firebase ya no reconoce (app desinstalada): hay que borrarlos.</returns>
     Task<IReadOnlyList<string>> SendAsync(IReadOnlyList<string> tokens, PushMessage message, CancellationToken cancellationToken);
+
+    /// <summary>A todos los teléfonos suscritos al tema (p. ej. anuncios del administrador).</summary>
+    Task SendToTopicAsync(string topic, PushMessage message, CancellationToken cancellationToken);
 }

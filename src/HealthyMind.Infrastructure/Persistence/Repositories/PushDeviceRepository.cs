@@ -18,11 +18,15 @@ internal sealed class PushDeviceRepository(HealthyMindDbContext context) : IPush
         CancellationToken cancellationToken) =>
         await context.PushDevices
             .Where(device => device.UserId == userId
+                && device.RecommendationsEnabled
                 && context.RefreshTokens.Any(token => token.UserId == userId
                     && token.DeviceId == device.DeviceId
                     && token.RevokedAt == null
                     && token.ExpiresAt > now))
             .ToListAsync(cancellationToken);
+
+    public Task<int> DeleteStaleAsync(DateTimeOffset updatedBefore, CancellationToken cancellationToken) =>
+        context.PushDevices.Where(device => device.UpdatedAt < updatedBefore).ExecuteDeleteAsync(cancellationToken);
 
     public void Add(PushDevice device) => context.PushDevices.Add(device);
 

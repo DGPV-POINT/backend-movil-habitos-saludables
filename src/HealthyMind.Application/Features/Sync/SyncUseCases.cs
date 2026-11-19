@@ -59,6 +59,7 @@ internal sealed class SyncUseCases(
         var cursor = timeProvider.GetUtcNow() - PullOverlap;
         var sinceUtc = since?.ToUniversalTime();
 
+        var user = await owned.UserAsync(userId, cancellationToken);
         var changedHabits = await habits.ListChangedSinceAsync(userId, sinceUtc, cancellationToken);
         var changedRecords = await records.ListChangedSinceAsync(userId, sinceUtc, cancellationToken);
         var newRecommendations = await recommendations.ListCreatedSinceAsync(userId, sinceUtc, PullRecommendationLimit, cancellationToken);
@@ -68,7 +69,8 @@ internal sealed class SyncUseCases(
             since is null,
             changedHabits.Select(habit => new HabitSyncItem(HabitResponse.From(habit), habit.IsDeleted)).ToList(),
             changedRecords.Select(record => new HabitRecordSyncItem(HabitRecordResponse.From(record), record.IsDeleted)).ToList(),
-            newRecommendations.Select(RecommendationResponse.From).ToList());
+            newRecommendations.Select(RecommendationResponse.From).ToList(),
+            user.RecommendationsSeenAt);
     }
 
     /// <summary>Cada elemento se graba por separado: si uno falla, se descarta solo ese.</summary>

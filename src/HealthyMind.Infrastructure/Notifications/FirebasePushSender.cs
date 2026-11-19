@@ -101,4 +101,21 @@ internal sealed class FirebasePushSender : IPushSender
 
         return invalid;
     }
+
+    public async Task SendToTopicAsync(string topic, PushMessage message, CancellationToken cancellationToken)
+    {
+        if (_messaging is null)
+        {
+            return;
+        }
+
+        await _messaging.SendAsync(
+            new Message
+            {
+                Topic = topic,
+                Data = message.Data,
+                Android = new AndroidConfig { Priority = Priority.High, TimeToLive = TimeSpan.FromDays(1) },
+            },
+            cancellationToken);
+    }
 }

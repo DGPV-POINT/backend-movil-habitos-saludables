@@ -27,6 +27,12 @@ public interface IRecommendationUseCases
     Task<PagedResult<RecommendationResponse>> ListAsync(Guid userId, PageRequest page, CancellationToken cancellationToken);
 
     Task<RecommendationResponse> GetAsync(Guid userId, Guid recommendationId, CancellationToken cancellationToken);
+
+    /// <summary>"Me sirvió" / "No me sirvió": la próxima recomendación lo toma en cuenta.</summary>
+    Task RateAsync(Guid userId, Guid recommendationId, RecommendationFeedbackRequest request, CancellationToken cancellationToken);
+
+    /// <summary>El usuario abrió la pestaña IA: se apaga la campana en todos sus teléfonos.</summary>
+    Task MarkSeenAsync(Guid userId, RecommendationsSeenRequest request, CancellationToken cancellationToken);
 }
 
 /// <summary>Generación automática de recomendaciones; la dispara un proceso en segundo plano.</summary>

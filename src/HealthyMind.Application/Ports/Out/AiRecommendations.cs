@@ -19,7 +19,11 @@ public sealed record HabitActivitySnapshot(
     int CurrentStreak,
     int BestStreak,
     IReadOnlyList<HabitActivity> Habits,
-    IReadOnlyList<WeekdayActivity> Weekdays);
+    IReadOnlyList<WeekdayActivity> Weekdays,
+    IReadOnlyList<PastAdvice>? Previous = null);
+
+/// <summary>Una recomendación anterior: para no repetirla y para saber qué le sirvió al usuario.</summary>
+public sealed record PastAdvice(string Title, string? FocusHabit, bool? WasHelpful);
 
 public sealed record HabitActivity(
     string Name,
