@@ -2,7 +2,8 @@
 #   push a main -> pruebas en GitHub (ubuntu-latest) -> despliegue en el servidor 192.168.1.47
 #   con el runner self-hosted (etiqueta "healthymind"), que solo toca el proyecto docker "healthymind".
 # Secrets (Settings -> Secrets and variables -> Actions -> Secrets):
-#   POSTGRES_PASSWORD, JWT_SIGNING_KEY, GROQ_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD (vacío tras el 1er despliegue)
+#   POSTGRES_PASSWORD, JWT_SIGNING_KEY, GROQ_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD (vacío tras el 1er despliegue),
+#   FIREBASE_CREDENTIALS_JSON (opcional: JSON de la cuenta de servicio de Firebase para avisos push)
 # Variables (misma pantalla -> Variables):
 #   ALLOW_ON_DEMAND (true/false, modo presentación), ADMIN_USERNAME
 name: CI/CD
@@ -59,7 +60,15 @@ jobs:
           ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
           ADMIN_USERNAME: ${{ vars.ADMIN_USERNAME || 'admin' }}
           ALLOW_ON_DEMAND: ${{ vars.ALLOW_ON_DEMAND || 'false' }}
+          FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
         run: |
+          # El JSON tiene varias líneas: va en base64 para caber en una línea del .env.
+          FIREBASE_CREDENTIALS_B64=""
+          if [ -n "$FIREBASE_CREDENTIALS_JSON" ]; then
+            FIREBASE_CREDENTIALS_B64=$(printf '%s' "$FIREBASE_CREDENTIALS_JSON" | base64 -w0)
+          else
+            echo "::warning::Sin el secret FIREBASE_CREDENTIALS_JSON: los avisos push quedan apagados"
+          fi
           test -n "$POSTGRES_PASSWORD" || { echo "::error::Falta el secret POSTGRES_PASSWORD"; exit 1; }
           test ${#JWT_SIGNING_KEY} -ge 32 || { echo "::error::JWT_SIGNING_KEY falta o tiene menos de 32 caracteres"; exit 1; }
           umask 077
@@ -72,6 +81,7 @@ jobs:
           ADMIN_USERNAME=$ADMIN_USERNAME
           ADMIN_EMAIL=$ADMIN_EMAIL
           ADMIN_PASSWORD=$ADMIN_PASSWORD
+          FIREBASE_CREDENTIALS_B64=$FIREBASE_CREDENTIALS_B64
           EOF
           cp deploy/docker-compose.prod.yml deploy/hm.sh "$DEPLOY_DIR/"
           chmod +x "$DEPLOY_DIR/hm.sh"

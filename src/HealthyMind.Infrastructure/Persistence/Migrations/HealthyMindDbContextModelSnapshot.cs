@@ -169,6 +169,45 @@ namespace HealthyMind.Infrastructure.Persistence.Migrations
                     b.ToTable("habit_records", (string)null);
                 });
 
+            modelBuilder.Entity("HealthyMind.Domain.Notifications.PushDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid")
+                        .HasColumnName("id");
+
+                    b.Property<string>("DeviceId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("device_id");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(4096)
+                        .HasColumnType("character varying(4096)")
+                        .HasColumnName("token");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid")
+                        .HasColumnName("user_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_push_devices");
+
+                    b.HasIndex("Token")
+                        .HasDatabaseName("ix_push_devices_token");
+
+                    b.HasIndex("UserId", "DeviceId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_push_devices_user_id_device_id");
+
+                    b.ToTable("push_devices", (string)null);
+                });
+
             modelBuilder.Entity("HealthyMind.Domain.Recommendations.AiRecommendation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -416,6 +455,16 @@ namespace HealthyMind.Infrastructure.Persistence.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired()
                         .HasConstraintName("fk_habit_records_users_user_id");
+                });
+
+            modelBuilder.Entity("HealthyMind.Domain.Notifications.PushDevice", b =>
+                {
+                    b.HasOne("HealthyMind.Domain.Users.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_push_devices_users_user_id");
                 });
 
             modelBuilder.Entity("HealthyMind.Domain.Recommendations.AiRecommendation", b =>

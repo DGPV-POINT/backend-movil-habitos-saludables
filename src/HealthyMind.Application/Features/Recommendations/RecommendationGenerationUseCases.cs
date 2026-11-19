@@ -19,6 +19,7 @@ internal sealed class RecommendationGenerationUseCases(
     IAiRecommendationProvider aiProvider,
     ComplianceReader compliance,
     IUnitOfWork unitOfWork,
+    IRecommendationPublisher publisher,
     TimeProvider timeProvider,
     IOptions<RecommendationOptions> options,
     ILogger<RecommendationGenerationUseCases> logger) : IRecommendationGenerationUseCases
@@ -78,7 +79,9 @@ internal sealed class RecommendationGenerationUseCases(
         recommendations.Add(recommendation);
         await unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return RecommendationResponse.From(recommendation);
+        var response = RecommendationResponse.From(recommendation);
+        await publisher.PublishAsync(user.Id, response, cancellationToken);
+        return response;
     }
 
     public async Task<RecommendationResponse?> GenerateOnDemandAsync(Guid userId, CancellationToken cancellationToken)

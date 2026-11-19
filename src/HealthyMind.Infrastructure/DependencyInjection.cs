@@ -1,6 +1,7 @@
 using HealthyMind.Application.Ports.Out;
 using HealthyMind.Infrastructure.Ai;
 using HealthyMind.Infrastructure.BackgroundJobs;
+using HealthyMind.Infrastructure.Notifications;
 using HealthyMind.Infrastructure.Persistence;
 using HealthyMind.Infrastructure.Persistence.Repositories;
 using HealthyMind.Infrastructure.Security;
@@ -20,6 +21,10 @@ public static class DependencyInjection
         AddPersistence(services, configuration);
         AddSecurity(services);
         AddAi(services, configuration);
+
+        // Avisos push: sin credenciales queda apagado y la API funciona igual.
+        services.AddOptions<FirebaseOptions>().BindConfiguration(FirebaseOptions.SectionName);
+        services.AddSingleton<IPushSender, FirebasePushSender>();
 
         services.AddOptions<RecommendationJobOptions>()
             .BindConfiguration(RecommendationJobOptions.SectionName)
@@ -55,6 +60,7 @@ public static class DependencyInjection
         services.AddScoped<IHabitRepository, HabitRepository>();
         services.AddScoped<IHabitRecordRepository, HabitRecordRepository>();
         services.AddScoped<IRecommendationRepository, RecommendationRepository>();
+        services.AddScoped<IPushDeviceRepository, PushDeviceRepository>();
     }
 
     private static void AddSecurity(IServiceCollection services)

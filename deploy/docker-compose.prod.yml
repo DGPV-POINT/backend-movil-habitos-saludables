@@ -49,6 +49,8 @@ services:
       Jwt__SigningKey: ${JWT_SIGNING_KEY:?Falta JWT_SIGNING_KEY en .env}
       Groq__ApiKey: ${GROQ_API_KEY:-}
       Recommendations__AllowOnDemand: ${ALLOW_ON_DEMAND:-false}
+      # Cuenta de servicio de Firebase en base64 (una línea). Vacío = sin avisos push.
+      Firebase__CredentialsBase64: ${FIREBASE_CREDENTIALS_B64:-}
       BootstrapAdmin__Username: ${ADMIN_USERNAME:-}
       BootstrapAdmin__Email: ${ADMIN_EMAIL:-}
       BootstrapAdmin__Password: ${ADMIN_PASSWORD:-}

@@ -1,4 +1,5 @@
 using HealthyMind.Domain.Habits;
+using HealthyMind.Domain.Notifications;
 using HealthyMind.Domain.Recommendations;
 using HealthyMind.Domain.Users;
 using Microsoft.EntityFrameworkCore;
@@ -16,6 +17,8 @@ public sealed class HealthyMindDbContext(DbContextOptions<HealthyMindDbContext> 
     public DbSet<HabitRecord> HabitRecords => Set<HabitRecord>();
 
     public DbSet<AiRecommendation> AiRecommendations => Set<AiRecommendation>();
+
+    public DbSet<PushDevice> PushDevices => Set<PushDevice>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder) =>
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(HealthyMindDbContext).Assembly);

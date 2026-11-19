@@ -2,6 +2,7 @@ using FluentValidation;
 using HealthyMind.Application.Features.Auth;
 using HealthyMind.Application.Features.HabitRecords;
 using HealthyMind.Application.Features.Habits;
+using HealthyMind.Application.Features.Notifications;
 using HealthyMind.Application.Features.Recommendations;
 using HealthyMind.Application.Features.Statistics;
 using HealthyMind.Application.Features.Sync;
@@ -47,6 +48,9 @@ public static class DependencyInjection
         services.AddScoped<IRecommendationUseCases, RecommendationUseCases>();
         services.AddScoped<IRecommendationGenerationUseCases, RecommendationGenerationUseCases>();
         services.AddScoped<ISyncUseCases, SyncUseCases>();
+        services.AddScoped<PushUseCases>();
+        services.AddScoped<IPushUseCases>(provider => provider.GetRequiredService<PushUseCases>());
+        services.AddScoped<IRecommendationPublisher>(provider => provider.GetRequiredService<PushUseCases>());
 
         return services;
     }
