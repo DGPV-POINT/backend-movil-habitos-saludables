@@ -1,6 +1,7 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /source
-COPY Directory.Build.props HealthyMind.slnx ./
+# .editorconfig: excluye del análisis las migraciones generadas por EF Core (sin él, CA1861 rompe el build).
+COPY .editorconfig Directory.Build.props HealthyMind.slnx ./
 COPY src/ src/
 RUN dotnet publish src/HealthyMind.Api/HealthyMind.Api.csproj -c Release -o /app
 
