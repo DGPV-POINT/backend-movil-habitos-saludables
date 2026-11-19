@@ -1,0 +1,97 @@
+# CI/CD de HealthyMind API.
+#   push a main -> pruebas en GitHub (ubuntu-latest) -> despliegue en el servidor 192.168.1.47
+#   con el runner self-hosted (etiqueta "healthymind"), que solo toca el proyecto docker "healthymind".
+# Secrets (Settings -> Secrets and variables -> Actions -> Secrets):
+#   POSTGRES_PASSWORD, JWT_SIGNING_KEY, GROQ_API_KEY, ADMIN_EMAIL, ADMIN_PASSWORD (vacío tras el 1er despliegue)
+# Variables (misma pantalla -> Variables):
+#   ALLOW_ON_DEMAND (true/false, modo presentación), ADMIN_USERNAME
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Un despliegue a la vez; si llega otro push, el anterior en cola se cancela.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Compilar y probar
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet build -c Release
+      # Las de integración usan Testcontainers: el runner de GitHub ya trae Docker.
+      - run: dotnet test -c Release --no-build
+
+  deploy:
+    name: Desplegar en 192.168.1.47
+    needs: test
+    runs-on: [self-hosted, healthymind]
+    environment: production
+    env:
+      DEPLOY_DIR: /srv/healthymind
+      COMPOSE: docker compose -p healthymind -f /srv/healthymind/docker-compose.prod.yml --env-file /srv/healthymind/.env
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Construir imagen
+        run: |
+          TAG="${GITHUB_SHA::7}"
+          echo "TAG=$TAG" >> "$GITHUB_ENV"
+          docker build -f src/HealthyMind.Api/Dockerfile -t "healthymind-api:$TAG" .
+
+      - name: Escribir configuración desde los secrets
+        env:
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          JWT_SIGNING_KEY: ${{ secrets.JWT_SIGNING_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          ADMIN_EMAIL: ${{ secrets.ADMIN_EMAIL }}
+          ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD }}
+          ADMIN_USERNAME: ${{ vars.ADMIN_USERNAME || 'admin' }}
+          ALLOW_ON_DEMAND: ${{ vars.ALLOW_ON_DEMAND || 'false' }}
+        run: |
+          test -n "$POSTGRES_PASSWORD" || { echo "::error::Falta el secret POSTGRES_PASSWORD"; exit 1; }
+          test ${#JWT_SIGNING_KEY} -ge 32 || { echo "::error::JWT_SIGNING_KEY falta o tiene menos de 32 caracteres"; exit 1; }
+          umask 077
+          cat > "$DEPLOY_DIR/.env" <<EOF
+          POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+          JWT_SIGNING_KEY=$JWT_SIGNING_KEY
+          GROQ_API_KEY=$GROQ_API_KEY
+          API_TAG=$TAG
+          ALLOW_ON_DEMAND=$ALLOW_ON_DEMAND
+          ADMIN_USERNAME=$ADMIN_USERNAME
+          ADMIN_EMAIL=$ADMIN_EMAIL
+          ADMIN_PASSWORD=$ADMIN_PASSWORD
+          EOF
+          cp deploy/docker-compose.prod.yml deploy/hm.sh "$DEPLOY_DIR/"
+          chmod +x "$DEPLOY_DIR/hm.sh"
+
+      - name: Levantar
+        run: $COMPOSE up -d --remove-orphans
+
+      - name: Verificar /health
+        run: |
+          for i in $(seq 1 30); do
+            if curl -fsS http://localhost:5080/health; then echo; exit 0; fi
+            sleep 3
+          done
+          echo "::error::La API no respondió Healthy"
+          $COMPOSE logs --tail 100 hm-api
+          exit 1
+
+      # Solo imágenes de ESTE proyecto: conserva la actual y la anterior (para volver atrás).
+      - name: Limpiar imágenes viejas de healthymind-api
+        if: success()
+        run: |
+          docker image ls healthymind-api --format '{{.CreatedAt}}\t{{.Repository}}:{{.Tag}}' \
+            | sort -r | tail -n +3 | cut -f2 | xargs -r docker image rm || true
