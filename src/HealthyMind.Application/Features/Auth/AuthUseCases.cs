@@ -5,6 +5,7 @@ using HealthyMind.Application.Ports.In;
 using HealthyMind.Application.Ports.Out;
 using HealthyMind.Domain.Users;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 
 namespace HealthyMind.Application.Features.Auth;
 
@@ -15,24 +16,31 @@ internal sealed class AuthUseCases(
     ISecureTokenGenerator tokenGenerator,
     UserRegistration registration,
     SessionIssuer sessions,
+    AccountCodes codes,
+    IOptions<AdminOptions> adminOptions,
     IUnitOfWork unitOfWork,
     TimeProvider timeProvider,
     IValidator<RegisterRequest> registerValidator,
     IValidator<LoginRequest> loginValidator,
     IValidator<RefreshRequest> refreshValidator,
     IValidator<LogoutRequest> logoutValidator,
+    IValidator<VerifyEmailRequest> verifyValidator,
+    IValidator<EmailRequest> emailValidator,
+    IValidator<ResetPasswordRequest> resetValidator,
     ILogger<AuthUseCases> logger) : IAuthUseCases
 {
     private const string InvalidCredentials = "Usuario o contraseña incorrectos.";
     private const string InvalidSession = "La sesión no es válida. Inicia sesión con tu contraseña.";
     private const string SuspendedAccount = "La cuenta se encuentra suspendida.";
+    private const string InvalidCode = "El código es incorrecto o ya venció. Pide uno nuevo.";
 
     // Hash de relleno: si el usuario no existe se verifica igual, para no delatar por tiempo de respuesta qué cuentas existen.
     private readonly Lazy<string> _dummyHash = new(() => passwordHasher.Hash(Guid.NewGuid().ToString()));
 
-    public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
+    public async Task<RegisterResponse> RegisterAsync(RegisterRequest request, CancellationToken cancellationToken)
     {
         await registerValidator.ValidateAndThrowAsync(request, cancellationToken);
+        var role = adminOptions.Value.IsAdminEmail(request.Email) ? UserRole.Admin : UserRole.User;
 
         var user = await registration.RegisterAsync(
             new NewUser(
@@ -41,14 +49,89 @@ internal sealed class AuthUseCases(
                 request.FirstName,
                 request.LastName,
                 request.Password,
-                UserRole.User,
+                role,
                 request.TimeZoneId),
             cancellationToken);
 
-        user.RegisterSuccessfulLogin(timeProvider.GetUtcNow());
+        // Primero se graba la cuenta: si el correo falla, la persona puede pedir el código otra vez.
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        await codes.SendAsync(user, UserCodePurpose.VerifyEmail, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
+        return new RegisterResponse(user.Email, (int)UserCode.Lifetime.TotalMinutes);
+    }
+
+    public async Task<AuthResponse> VerifyEmailAsync(VerifyEmailRequest request, CancellationToken cancellationToken)
+    {
+        await verifyValidator.ValidateAndThrowAsync(request, cancellationToken);
+        var now = timeProvider.GetUtcNow();
+
+        var user = await users.GetByEmailAsync(request.Email, cancellationToken)
+            ?? throw new AuthenticationFailedException(InvalidCode);
+
+        if (user.IsEmailVerified)
+        {
+            throw new ConflictException("Tu correo ya está confirmado. Inicia sesión con tu contraseña.");
+        }
+
+        var valid = await codes.TryUseAsync(user, UserCodePurpose.VerifyEmail, request.Code, cancellationToken);
+        if (!valid)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken); // guarda el intento gastado
+            throw new AuthenticationFailedException(InvalidCode);
+        }
+
+        user.MarkEmailVerified(now);
+        if (!user.IsActive)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            throw new ForbiddenException(SuspendedAccount);
+        }
+
+        user.RegisterSuccessfulLogin(now);
         var response = await sessions.OpenAsync(user, request.DeviceId, request.DeviceName, cancellationToken);
         await unitOfWork.SaveChangesAsync(cancellationToken);
         return response;
+    }
+
+    public async Task ResendVerificationAsync(EmailRequest request, CancellationToken cancellationToken)
+    {
+        await emailValidator.ValidateAndThrowAsync(request, cancellationToken);
+        var user = await users.GetByEmailAsync(request.Email, cancellationToken);
+        if (user is { IsEmailVerified: false, IsActive: true })
+        {
+            await codes.SendAsync(user, UserCodePurpose.VerifyEmail, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task ForgotPasswordAsync(EmailRequest request, CancellationToken cancellationToken)
+    {
+        await emailValidator.ValidateAndThrowAsync(request, cancellationToken);
+        var user = await users.GetByEmailAsync(request.Email, cancellationToken);
+        if (user is { IsActive: true })
+        {
+            await codes.SendAsync(user, UserCodePurpose.ResetPassword, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+    }
+
+    public async Task ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        await resetValidator.ValidateAndThrowAsync(request, cancellationToken);
+
+        var user = await users.GetByEmailAsync(request.Email, cancellationToken)
+            ?? throw new AuthenticationFailedException(InvalidCode);
+
+        var valid = await codes.TryUseAsync(user, UserCodePurpose.ResetPassword, request.Code, cancellationToken);
+        if (!valid || !user.IsActive)
+        {
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            throw valid ? new ForbiddenException(SuspendedAccount) : new AuthenticationFailedException(InvalidCode);
+        }
+
+        user.ResetPassword(passwordHasher.Hash(request.NewPassword), timeProvider.GetUtcNow());
+        await sessions.RevokeAllAsync(user.Id, RevocationReasons.PasswordChanged, cancellationToken);
+        await unitOfWork.SaveChangesAsync(cancellationToken);
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken)
@@ -81,6 +164,13 @@ internal sealed class AuthUseCases(
         if (!user.IsActive)
         {
             throw new ForbiddenException(SuspendedAccount);
+        }
+
+        if (!user.IsEmailVerified)
+        {
+            await codes.SendAsync(user, UserCodePurpose.VerifyEmail, cancellationToken);
+            await unitOfWork.SaveChangesAsync(cancellationToken);
+            throw new EmailNotVerifiedException(user.Email);
         }
 
         user.RegisterSuccessfulLogin(now);

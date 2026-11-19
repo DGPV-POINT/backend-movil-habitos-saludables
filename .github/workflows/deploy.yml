@@ -61,7 +61,13 @@ jobs:
           ADMIN_USERNAME: ${{ vars.ADMIN_USERNAME || 'admin' }}
           ALLOW_ON_DEMAND: ${{ vars.ALLOW_ON_DEMAND || 'false' }}
           FIREBASE_CREDENTIALS_JSON: ${{ secrets.FIREBASE_CREDENTIALS_JSON }}
+          SMTP_HOST: ${{ vars.SMTP_HOST }}
+          SMTP_PORT: ${{ vars.SMTP_PORT || '587' }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ vars.SMTP_FROM }}
         run: |
+          test -n "$SMTP_HOST" || echo "::warning::Sin la variable SMTP_HOST: los códigos por correo no se envían (solo quedan en el log)"
           # El JSON tiene varias líneas: va en base64 para caber en una línea del .env.
           FIREBASE_CREDENTIALS_B64=""
           if [ -n "$FIREBASE_CREDENTIALS_JSON" ]; then
@@ -82,6 +88,11 @@ jobs:
           ADMIN_EMAIL=$ADMIN_EMAIL
           ADMIN_PASSWORD=$ADMIN_PASSWORD
           FIREBASE_CREDENTIALS_B64=$FIREBASE_CREDENTIALS_B64
+          SMTP_HOST=$SMTP_HOST
+          SMTP_PORT=$SMTP_PORT
+          SMTP_USER=$SMTP_USER
+          SMTP_PASSWORD=$SMTP_PASSWORD
+          SMTP_FROM=$SMTP_FROM
           EOF
           cp deploy/docker-compose.prod.yml deploy/hm.sh "$DEPLOY_DIR/"
           chmod +x "$DEPLOY_DIR/hm.sh"

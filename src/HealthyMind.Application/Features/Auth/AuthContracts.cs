@@ -15,6 +15,16 @@ public sealed record RegisterRequest(
     string? DeviceName,
     string? TimeZoneId);
 
+/// <summary>La cuenta queda creada pero sin sesión: primero hay que confirmar el correo con el código enviado.</summary>
+public sealed record RegisterResponse(string Email, int CodeExpiresInMinutes);
+
+public sealed record VerifyEmailRequest(string Email, string Code, string DeviceId, string? DeviceName);
+
+/// <summary>Para reenviar el código de confirmación o pedir uno de recuperación.</summary>
+public sealed record EmailRequest(string Email);
+
+public sealed record ResetPasswordRequest(string Email, string Code, string NewPassword);
+
 public sealed record LoginRequest(string UsernameOrEmail, string Password, string DeviceId, string? DeviceName);
 
 public sealed record RefreshRequest(string RefreshToken, string DeviceId);
@@ -88,6 +98,39 @@ public sealed class RefreshRequestValidator : AbstractValidator<RefreshRequest>
     {
         RuleFor(x => x.RefreshToken).NotEmpty().WithMessage("El refresh token es obligatorio.").MaximumLength(200);
         RuleFor(x => x.DeviceId).ValidDeviceId();
+    }
+}
+
+internal static class CodeRules
+{
+    public static IRuleBuilderOptions<T, string> ValidCode<T>(this IRuleBuilder<T, string> rule) => rule
+        .NotEmpty().WithMessage("El código es obligatorio.")
+        .Matches("^[0-9]{6}$").WithMessage("El código tiene 6 dígitos.");
+}
+
+public sealed class VerifyEmailRequestValidator : AbstractValidator<VerifyEmailRequest>
+{
+    public VerifyEmailRequestValidator()
+    {
+        RuleFor(x => x.Email).ValidEmail();
+        RuleFor(x => x.Code).ValidCode();
+        RuleFor(x => x.DeviceId).ValidDeviceId();
+        RuleFor(x => x.DeviceName).MaximumLength(RefreshToken.DeviceNameMaxLength);
+    }
+}
+
+public sealed class EmailRequestValidator : AbstractValidator<EmailRequest>
+{
+    public EmailRequestValidator() => RuleFor(x => x.Email).ValidEmail();
+}
+
+public sealed class ResetPasswordRequestValidator : AbstractValidator<ResetPasswordRequest>
+{
+    public ResetPasswordRequestValidator()
+    {
+        RuleFor(x => x.Email).ValidEmail();
+        RuleFor(x => x.Code).ValidCode();
+        RuleFor(x => x.NewPassword).StrongPassword();
     }
 }
 

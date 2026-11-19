@@ -1,4 +1,6 @@
+using System.Collections.Concurrent;
 using System.Net.Http.Headers;
+using System.Text.RegularExpressions;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -47,25 +49,55 @@ public sealed class ApiFactory : WebApplicationFactory<Program>, IAsyncLifetime
         {
             services.RemoveAll<IPushSender>();
             services.AddSingleton<IPushSender>(Push);
+            services.RemoveAll<IEmailSender>();
+            services.AddSingleton<IEmailSender>(Mail);
         });
     }
 
     public RecordingPushSender Push { get; } = new();
 
+    public RecordingEmailSender Mail { get; } = new();
+
     public async Task<(HttpClient Client, AuthResponse Auth)> RegisterAsync(string deviceId = "device-1")
     {
         var username = "u" + Guid.NewGuid().ToString("N")[..10];
+        var email = $"{username}@test.com";
         var client = CreateClient();
         var response = await client.PostAsJsonAsync(
             "/api/auth/register",
-            new RegisterRequest(username, $"{username}@test.com", "Ana", "Pérez", "Clave1234", deviceId, "Pixel", null),
+            new RegisterRequest(username, email, "Ana", "Pérez", "Clave1234", deviceId, "Pixel", null),
             Json);
         response.EnsureSuccessStatusCode();
 
-        var auth = (await response.Content.ReadFromJsonAsync<AuthResponse>(Json))!;
+        // La sesión se abre al confirmar el correo con el código que "llegó".
+        var verified = await client.PostAsJsonAsync(
+            "/api/auth/email/verify",
+            new VerifyEmailRequest(email, Mail.LastCodeFor(email), deviceId, "Pixel"),
+            Json);
+        verified.EnsureSuccessStatusCode();
+
+        var auth = (await verified.Content.ReadFromJsonAsync<AuthResponse>(Json))!;
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.AccessToken);
         return (client, auth);
     }
+}
+
+/// <summary>Correo de mentira: guarda los mensajes para leer el código enviado.</summary>
+public sealed partial class RecordingEmailSender : IEmailSender
+{
+    public ConcurrentQueue<EmailMessage> Sent { get; } = new();
+
+    public Task SendAsync(EmailMessage message, CancellationToken cancellationToken)
+    {
+        Sent.Enqueue(message);
+        return Task.CompletedTask;
+    }
+
+    public string LastCodeFor(string email) =>
+        SixDigits().Match(Sent.Last(message => message.To == email).TextBody).Value;
+
+    [GeneratedRegex(@"\b\d{6}\b")]
+    private static partial Regex SixDigits();
 }
 
 [CollectionDefinition(Name)]

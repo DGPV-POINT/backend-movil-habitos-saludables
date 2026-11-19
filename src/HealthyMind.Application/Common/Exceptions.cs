@@ -13,3 +13,12 @@ public sealed class AuthenticationFailedException(string message) : Exception(me
 
 /// <summary>Se sabe quién es, pero no puede hacerlo (cuenta suspendida, acción no permitida).</summary>
 public sealed class ForbiddenException(string message) : Exception(message);
+
+/// <summary>Contraseña correcta pero el correo no está confirmado: ya se envió un código y el móvil debe pedirlo.</summary>
+public sealed class EmailNotVerifiedException(string email)
+    : Exception("Confirma tu correo: te enviamos un código de 6 dígitos.")
+{
+    public const string Code = "email_not_verified";
+
+    public string Email { get; } = email;
+}

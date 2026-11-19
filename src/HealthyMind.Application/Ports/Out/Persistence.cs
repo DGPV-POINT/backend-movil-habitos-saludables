@@ -30,6 +30,12 @@ public interface IUserRepository
 
     Task<bool> AnyAdminAsync(CancellationToken cancellationToken);
 
+    Task<int> CountActiveAdminsAsync(CancellationToken cancellationToken);
+
+    Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<User>> ListByEmailsAsync(IReadOnlyCollection<string> emails, CancellationToken cancellationToken);
+
     Task<bool> IsActiveAsync(Guid id, CancellationToken cancellationToken);
 
     Task<PagedResult<User>> SearchAsync(

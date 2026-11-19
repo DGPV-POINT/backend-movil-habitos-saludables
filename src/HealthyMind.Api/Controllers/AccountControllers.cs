@@ -90,6 +90,23 @@ public sealed class AdminUsersController(IUserAdministrationUseCases administrat
     [HttpPatch("{userId:guid}/reactivate")]
     public Task<UserProfileResponse> Reactivate(Guid userId, CancellationToken cancellationToken) =>
         administration.ReactivateAsync(userId, cancellationToken);
+
+    /// <summary>Da o quita el rol de administrador. Cierra las sesiones de esa persona para aplicar el cambio.</summary>
+    [HttpPatch("{userId:guid}/role")]
+    [ProducesResponseType<UserProfileResponse>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
+    public Task<UserProfileResponse> ChangeRole(Guid userId, ChangeRoleRequest request, CancellationToken cancellationToken) =>
+        administration.ChangeRoleAsync(CurrentUserId, userId, request, cancellationToken);
+}
+
+/// <summary>Tablero del administrador: cifras generales de uso de la plataforma.</summary>
+[Route("api/admin/dashboard")]
+[Authorize(Policy = AuthenticationSetup.AdminPolicy)]
+public sealed class AdminDashboardController(IUserAdministrationUseCases administration) : ApiControllerBase
+{
+    [HttpGet]
+    public Task<AdminDashboardResponse> Get(CancellationToken cancellationToken) =>
+        administration.GetDashboardAsync(CurrentUserId, cancellationToken);
 }
 
 /// <summary>Disparo manual de la IA, útil para probar la API key sin esperar al proceso automático.</summary>
